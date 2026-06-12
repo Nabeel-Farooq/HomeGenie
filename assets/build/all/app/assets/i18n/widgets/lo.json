@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "ເປີດ/ປິດການກົດຄ້າງໄວ້ເພື່ອຈັດຮຽງວິດເຈັດຄືນໃໝ່",
+  "$alarm_system": {
+    "arm_home": "ບ້ານ",
+    "arm_away": "ຫ່າງ"
+  },
+  "$section_label": {
+    "label": "ປ້າຍກຳກັບ",
+    "indicators": "ຕົວຊີ້ວັດ",
+    "lights_control": "ແສງໄຟ",
+    "switches_control": "ສະວິດ"
+  },
+  "$ai_chat": {
+    "intro": "ສະບາຍດີ! ຂ້ອຍແມ່ນ AI ໃນທ້ອງຖິ່ນຂອງເຈົ້າ. ຂ້ອຍສາມາດຊ່ວຍເຈົ້າໄດ້ແນວໃດ?",
+    "start_typing_prompt": "ເລີ່ມພິມຄຳສັ່ງ...",
+    "download_title": "ດາວໂຫຼດໄຟລ໌ LLM ທີ່ຕ້ອງການ:",
+    "teaser_description": "ນຳໃຊ້ພະລັງຂອງ Generative AI ໃນຮາດແວຂອງທ່ານ. ສົນທະນາ, ຂຽນລະຫັດ, ຫຼືສ້າງລະບົບອັດຕະໂນມັດຂັ້ນສູງດ້ວຍຄວາມປອດໄພຂອງລະບົບທ້ອງຖິ່ນ ແລະ ເອກະຊົນ.",
+    "select_model": "ເລືອກຮູບແບບ",
+    "feat_private": "ສ່ວນຕົວ",
+    "feat_offline": "ໄວ ແລະ ທ້ອງຖິ່ນ",
+    "feat_automation": "ອັດຕະໂນມັດ",
+    "loading_model": "ກຳລັງໂຫຼດໂມເດວເຂົ້າໃນໜ່ວຍຄວາມຈຳ... ອັນນີ້ອາດໃຊ້ເວລາສອງສາມນາທີ.",
+    "model": "ຮຸ່ນ",
+    "status": "ສະຖານະ"
+  }
+}

@@ -1,0 +1,101 @@
+@import 'assets/styles/widget-ui.css';
+@import 'assets/styles/flex-layout-attribute.min.css';
+
+:host {
+  display: block;
+  height: 100%;
+  font-family: sans-serif;
+}
+
+.body {
+  height: 100%;
+}
+
+.container {
+  height: 100%;
+  padding: 12px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  height: 12px;
+  padding-right: 48px;
+  color: var(--text-color);
+  flex-shrink: 0;
+}
+
+.dimmer-ring {
+  position: relative;
+  height: var(--container-height, 140px);
+  cursor: pointer;
+  touch-action: none;
+}
+
+svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.track {
+  fill: none;
+  stroke: var(--divider-color);
+  stroke-width: 8;
+}
+
+.progress {
+  fill: none;
+  stroke: var(--accent-color);
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.1s linear, filter 0.3s, stroke 0.3s;
+  stroke-dasharray: 263.89;
+  filter: drop-shadow(0 0 3px var(--accent-color, #ff0));
+}
+
+.center-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  padding: 24px;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.icon {
+  font-size: 48px;
+  color: var(--secondary-text-color);
+  transition: color 0.3s;
+  pointer-events: none;
+}
+
+.active-icon {
+  color: var(--accent-color);
+}
+
+.percentage {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: var(--text-color);
+  pointer-events: none;
+}
+
+.dimmer-ring svg {
+  cursor: grab;
+}
+
+.center-content {
+  pointer-events: none; 
+}
+
+.center-content .icon, .center-content .percentage {
+  pointer-events: auto;
+}

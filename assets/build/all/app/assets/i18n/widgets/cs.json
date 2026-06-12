@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Povolit/Zakázat dlouhé stisknutí pro změnu pořadí widgetů",
+  "$alarm_system": {
+    "arm_home": "Domov",
+    "arm_away": "Pryč"
+  },
+  "$section_label": {
+    "label": "Označení",
+    "indicators": "Indikátory",
+    "lights_control": "Světla",
+    "switches_control": "Přepínače"
+  },
+  "$ai_chat": {
+    "intro": "Ahoj! Jsem vaše místní umělá inteligence. Jak vám mohu pomoci?",
+    "start_typing_prompt": "Začněte psát výzvu...",
+    "download_title": "Stáhněte si požadovaný soubor LLM:",
+    "teaser_description": "Využijte sílu generativní umělé inteligence na svém hardwaru. Chatujte, pište kód nebo vytvářejte pokročilé automatizace s bezpečností lokálního a soukromého systému.",
+    "select_model": "Vyberte model",
+    "feat_private": "Soukromé",
+    "feat_offline": "Rychlé a lokální",
+    "feat_automation": "Automatizace",
+    "loading_model": "Načítání modelu do paměti... Může to chvíli trvat.",
+    "model": "Model",
+    "status": "Postavení"
+  }
+}

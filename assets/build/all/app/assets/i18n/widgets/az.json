@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Vidcetləri yenidən sıralamaq üçün uzun basmağı aktivləşdirin/deaktiv edin",
+  "$alarm_system": {
+    "arm_home": "Ev",
+    "arm_away": "Uzaqda"
+  },
+  "$section_label": {
+    "label": "Etiket",
+    "indicators": "Göstəricilər",
+    "lights_control": "İşıqlar",
+    "switches_control": "Keçidlər"
+  },
+  "$ai_chat": {
+    "intro": "Salam! Mən sizin yerli süni intellektinizəm. Sizə necə kömək edə bilərəm?",
+    "start_typing_prompt": "Bir sorğu yazmağa başlayın...",
+    "download_title": "Tələb olunan LLM faylını yükləyin:",
+    "teaser_description": "Avadanlıqlarınızda Generativ Süni İntellektdən istifadə edin. Yerli və özəl sistemin təhlükəsizliyi ilə söhbət edin, kod yazın və ya qabaqcıl avtomatlaşdırmalar qurun.",
+    "select_model": "Model seçin",
+    "feat_private": "Şəxsi",
+    "feat_offline": "Sürətli və Yerli",
+    "feat_automation": "Avtomatlaşdırma",
+    "loading_model": "Model yaddaşa yüklənir... Bu bir neçə dəqiqə çəkə bilər.",
+    "model": "Model",
+    "status": "Status"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "node_inclusion": "Eszköz hozzáadása",
+  "node_exclusion": "Eszköz eltávolítása",
+  "operation_timed_out": "A művelet időtúllépést okozott.",
+  "node_added": "Csomópont sikeresen hozzáadva",
+  "turn_on_device_to_add": "Kapcsolja be az eszközt, és szükség esetén tartsa lenyomva a párosítás gombot 5 másodpercig.",
+  "soft_reset_button": "Lágy alaphelyzetbe állítás"
+}

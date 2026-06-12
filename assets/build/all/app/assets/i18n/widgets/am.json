@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "መግብሮችን እንደገና ለመደርደር በረጅሙ ተጫንን አንቃ/አቦዝን",
+  "$alarm_system": {
+    "arm_home": "ቤት",
+    "arm_away": "ራቅ"
+  },
+  "$section_label": {
+    "label": "መለያ",
+    "indicators": "አመላካቾች",
+    "lights_control": "መብራቶች",
+    "switches_control": "መቀየሪያዎች"
+  },
+  "$ai_chat": {
+    "intro": "ሰላም! እኔ የአካባቢህ አርቴፊሻል ኢንተለጀንስ ነኝ። እንዴት ልረዳህ እችላለሁ?",
+    "start_typing_prompt": "ጥያቄ መተየብ ጀምር...",
+    "download_title": "የሚያስፈልገውን የLLM ፋይል ያውርዱ፦",
+    "teaser_description": "የጄኔሬቲቭ አይአይ (GENERATIVE AI) ኃይል በሃርድዌርዎ ላይ ይጠቀሙ። በአካባቢያዊ እና በግል ስርዓት ደህንነት ይወያዩ፣ ኮድ ይፃፉ ወይም የላቁ አውቶሜሽኖችን ይገንቡ።",
+    "select_model": "ሞዴል ይምረጡ",
+    "feat_private": "የግል",
+    "feat_offline": "ፈጣን እና አካባቢያዊ",
+    "feat_automation": "አውቶሜሽን",
+    "loading_model": "ሞዴሉን ወደ ማህደረ ትውስታ በመጫን ላይ... ይህ ጥቂት ጊዜ ሊወስድ ይችላል።",
+    "model": "ሞዴል",
+    "status": "ሁኔታ"
+  }
+}

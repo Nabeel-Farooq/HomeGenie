@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "د ویجټونو د بیا تنظیمولو لپاره اوږد فشار فعال/غیر فعال کړئ",
+  "$alarm_system": {
+    "arm_home": "کور",
+    "arm_away": "لرې"
+  },
+  "$section_label": {
+    "label": "لیبل",
+    "indicators": "شاخصونه",
+    "lights_control": "څراغونه",
+    "switches_control": "سویچونه"
+  },
+  "$ai_chat": {
+    "intro": "سلام! زه ستاسو سیمه ییز مصنوعي استخبارات یم. څنګه مرسته کولی شم؟",
+    "start_typing_prompt": "د اشارې لیکل پیل کړئ...",
+    "download_title": "د اړتیا وړ LLM فایل ډاونلوډ کړئ:",
+    "teaser_description": "په خپل هارډویر کې د جنریټیو AI ځواک وکاروئ. د محلي او خصوصي سیسټم امنیت سره چیټ وکړئ، کوډ ولیکئ، یا پرمختللي اتوماتیکونه جوړ کړئ.",
+    "select_model": "یو ماډل غوره کړئ",
+    "feat_private": "شخصي",
+    "feat_offline": "چټک او محلي",
+    "feat_automation": "اتومات کول",
+    "loading_model": "ماډل په حافظه کې بارول... دا ممکن یو څو شیبې وخت ونیسي.",
+    "model": "ماډل",
+    "status": "وضعیت"
+  }
+}

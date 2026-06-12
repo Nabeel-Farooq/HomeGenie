@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Gaitu/Desgaitu luze sakatuta widgetak berrantolatzeko",
+  "$alarm_system": {
+    "arm_home": "Etxea",
+    "arm_away": "Urruti"
+  },
+  "$section_label": {
+    "label": "Etiketa",
+    "indicators": "Adierazleak",
+    "lights_control": "Argiak",
+    "switches_control": "etengailuak"
+  },
+  "$ai_chat": {
+    "intro": "Kaixo! Zure tokiko IA naiz. Nola lagundu zaitzaket?",
+    "start_typing_prompt": "Hasi gonbidapen bat idazten...",
+    "download_title": "Deskargatu beharrezko LLM fitxategia:",
+    "teaser_description": "Aprobetxatu IA Generatiboaren indarra zure hardwarean. Txateatu, idatzi kodea edo eraiki automatizazio aurreratuak sistema lokal eta pribatu baten segurtasunarekin.",
+    "select_model": "Hautatu modelo bat",
+    "feat_private": "Pribatua",
+    "feat_offline": "Azkarra eta Tokikoa",
+    "feat_automation": "Automatizazioa",
+    "loading_model": "Modeloa memorian kargatzen... Honek minutu batzuk iraun ditzake.",
+    "model": "Modeloa",
+    "status": "Egoera"
+  }
+}

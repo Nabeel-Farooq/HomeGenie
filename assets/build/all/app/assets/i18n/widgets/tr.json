@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Widget'ları yeniden sıralamak için uzun basmayı etkinleştir/devre dışı bırak",
+  "$alarm_system": {
+    "arm_home": "Ev",
+    "arm_away": "Uzak"
+  },
+  "$section_label": {
+    "label": "Etiket",
+    "indicators": "Göstergeler",
+    "lights_control": "Işıklar",
+    "switches_control": "Anahtarlar"
+  },
+  "$ai_chat": {
+    "intro": "Merhaba! Ben yerel yapay zekânızım. Size nasıl yardımcı olabilirim?",
+    "start_typing_prompt": "Komut istemini yazmaya başlayın...",
+    "download_title": "Gerekli LLM dosyasını indirin:",
+    "teaser_description": "Donanımınızda Üretken Yapay Zekanın gücünden yararlanın. Yerel ve özel bir sistemin güvenliğiyle sohbet edin, kod yazın veya gelişmiş otomasyonlar oluşturun.",
+    "select_model": "Bir Model Seçin",
+    "feat_private": "Özel",
+    "feat_offline": "Hızlı ve Yerel",
+    "feat_automation": "Otomasyon",
+    "loading_model": "Model belleğe yükleniyor... Bu işlem birkaç dakika sürebilir.",
+    "model": "Model",
+    "status": "Durum"
+  }
+}

@@ -1,0 +1,3191 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ArrayOfProgramBlock xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <ProgramBlock>
+    <ScriptSetup>Program.Run();
+</ScriptSetup>
+    <ScriptSource>// ===================================================================
+// CONTEXT ENGINE - SYSTEM UTILITY
+// ===================================================================
+// This service generates dynamic prompts for LLM handlers.
+// It populates templates with the list of controllable devices and
+// current system status (Weather, Energy, Security, and live states).
+// ===================================================================
+
+Api.Handle("System.Utility/ContextEngine/GetStatus", (args) =&gt; {
+    var statusSb = new StringBuilder();
+
+    var controlModules = new List&lt;ModuleHelper&gt;();
+    var sensorModules = new List&lt;ModuleHelper&gt;();
+    string allowedTypes = "Dimmer,Light,Color,Switch,Shutter,DoorLock,Thermostat,Sensor,DoorWindow";
+
+    Modules.OfDeviceType(allowedTypes).Each((m) =&gt; {
+        var instance = m.Instance;
+        var deviceType = instance.DeviceType.ToString().ToLower();
+        if ((deviceType == "sensor" || deviceType == "doorwindow") &amp;&amp; instance.Domain != "HomeAutomation.SecuritySystem")
+            sensorModules.Add(m);
+        else
+            controlModules.Add(m);
+        return false;
+    });
+
+    var weather = Modules.InDomain("HomeAutomation.HomeGenie.Automation").WithAddress("34").Get();
+    if (weather.Instance != null) statusSb.AppendLine("Weather: " + PromptHelpers.GetWeatherStatus(weather));
+
+    var energy = Modules.InDomain("HomeAutomation.EnergyMonitor").WithAddress("1").Get();
+    if (energy.Instance != null) statusSb.AppendLine("Energy: " + PromptHelpers.GetEnergyStatus(energy));
+
+    var alarm = Modules.InDomain("HomeAutomation.SecuritySystem").WithAddress("Main").Get();
+    if (alarm.Instance != null) statusSb.AppendLine("Alarm: " + PromptHelpers.GetSecurityStatus(alarm));
+
+    statusSb.AppendLine("\nDEVICES STATUS:");
+    foreach (var m in controlModules) {
+        var info = PromptHelpers.GetModuleStatus(m);
+        if (!string.IsNullOrEmpty(info)) statusSb.AppendLine(info);
+    }
+
+    foreach (var m in sensorModules) {
+        var info = PromptHelpers.GetModuleStatus(m);
+        if (!string.IsNullOrEmpty(info)) statusSb.AppendLine(info);
+    }
+
+    return statusSb.ToString();
+});
+
+Api.Handle("System.Utility/ContextEngine", (args) =&gt; {
+    var request = Api.Parse(args);
+    string template = (string)request.Data;
+
+    if (string.IsNullOrEmpty(template))
+    {
+        template = "**AVAILABLE MODULES**\n\n%%AVAILABLE_DEVICES%%\n**CURRENT SYSTEM STATUS** (Timestamp: %%CURRENT_TIME%%)\n\n%%SYSTEM_STATUS%%\n";
+    }
+
+    // --- 1. COLLECT USER-CONFIGURED MODULES ---
+    // We create a unified list of ModuleHelpers that the user is allowed to control.
+    var controlModules = new List&lt;ModuleHelper&gt;();
+    var sensorModules = new List&lt;ModuleHelper&gt;();
+
+    // Physical devices (Lights, Switches, Thermostats, etc.)
+    string allowedTypes = "Dimmer,Light,Color,Switch,Shutter,DoorLock,Thermostat,Sensor,DoorWindow";
+    Modules.OfDeviceType(allowedTypes).Each((m) =&gt; {
+        var instance = m.Instance;
+        var deviceType = instance.DeviceType.ToString().ToLower();
+        if ((deviceType == "sensor" || deviceType == "doorwindow") &amp;&amp; instance.Domain != "HomeAutomation.SecuritySystem")
+        {
+            sensorModules.Add(m);
+            // the only "Sensor" listed in 'controlModules' is Security Alarm System
+        } else {
+            controlModules.Add(m);
+        }
+        return false; // Continue iteration
+    });
+
+    // Scenarios and Macros (Programs configured with the generic program widget)
+    Modules.OfDeviceType("Program").WithParameter("Widget.DisplayModule").Each((m) =&gt; {
+        // Filter out system loggers and ensure it's a user-facing program
+        var widget = m.Parameter("Widget.DisplayModule")?.Value;
+        if (m.Instance.Address != "6" &amp;&amp; m.Instance.Address != "7"
+            &amp;&amp; m.Instance.Address != "34" &amp;&amp; m.Instance.Address != "940"
+            &amp;&amp; !String.IsNullOrWhiteSpace(widget))
+        {
+            controlModules.Add(m);
+        }
+        return false;
+    });
+
+    // --- 2. GENERATE AVAILABLE DEVICES LIST (Directory) ---
+    // This section provides the AI with a clean list of IDs and types.
+    // Live states (ON/OFF) are NOT included here to keep the list stable.
+    var devicesSb = new StringBuilder();
+    foreach (var m in controlModules) {
+        var module = m.Instance;
+        var type = module.DeviceType.ToString();
+        // exception
+        if (type == "Program" &amp;&amp; m.Parameter("Widget.DisplayModule").Value != "homegenie/generic/program")
+        {
+            type = m.Parameter("Widget.DisplayModule").Value;
+            if (type.LastIndexOf("/") &gt; 0)
+            {
+                type = type.Substring(type.LastIndexOf("/") + 1);
+            }
+        }
+
+        var moduleGroups = Modules.Groups
+            .Where(g =&gt; Modules.InGroup(g).SelectedModules.Any(mod =&gt;
+                mod.Domain == module.Domain &amp;&amp;
+                mod.Address == module.Address))
+            .ToList();
+
+        var groups = string.Join(", ", moduleGroups);
+        if (string.IsNullOrEmpty(groups))
+        {
+            groups = "(unassigned)";
+        }
+
+        devicesSb.AppendLine($"- {module.Name} | {type} | {module.Domain}/{module.Address} | " + groups);
+    }
+
+    // --- 3. GENERATE SYSTEM STATUS REPORT (Live Context) ---
+    // This section provides the AI with real-time situational awareness.
+    var statusSb = new StringBuilder();
+
+    // A. Core System Reports (Weather, Energy, Alarm, Master Thermostat)
+    statusSb.AppendLine("## SYSTEM REPORT");
+
+    var weather = Modules.InDomain("HomeAutomation.HomeGenie.Automation").WithAddress("34").Get();
+    if (weather.Instance != null) statusSb.AppendLine("- " + PromptHelpers.GetWeatherStatus(weather));
+
+    var energy = Modules.InDomain("HomeAutomation.EnergyMonitor").WithAddress("1").Get();
+    if (energy.Instance != null) statusSb.AppendLine("- " + PromptHelpers.GetEnergyStatus(energy));
+
+    var alarm = Modules.InDomain("HomeAutomation.SecuritySystem").WithAddress("Main").Get();
+    if (alarm.Instance != null) statusSb.AppendLine("- " + PromptHelpers.GetSecurityStatus(alarm));
+
+    var thermo = Modules.InDomain("HomeAutomation.SmartThermostat").WithAddress("1").Get();
+    if (thermo.Instance != null) statusSb.AppendLine("- " + PromptHelpers.GetThermostatStatus(thermo));
+
+    // B. Individual Devices Live Status
+    // Provides a 1:1 status update for the devices listed in the directory.
+    statusSb.AppendLine("\n## DEVICES STATUS");
+    foreach (var m in controlModules) {
+        var info = PromptHelpers.GetModuleStatus(m);
+        if (!string.IsNullOrEmpty(info)) statusSb.AppendLine("- " + info);
+    }
+    statusSb.AppendLine("\n## SENSORS STATUS");
+    foreach (var m in sensorModules) {
+        var info = PromptHelpers.GetModuleStatus(m);
+        if (!string.IsNullOrEmpty(info)) statusSb.AppendLine("- " + info);
+    }
+
+    // --- 4. TEMPLATE ASSEMBLY ---
+    // Replace placeholders with generated content and current server time.
+    return template
+        .Replace("%%AVAILABLE_DEVICES%%", devicesSb.ToString())
+        .Replace("%%SYSTEM_STATUS%%", statusSb.ToString())
+        .Replace("%%CURRENT_TIME%%", DateTime.Now.ToString("f", System.Globalization.CultureInfo.InvariantCulture)
+        + "\n--- END OF SYSTEM REPORT ---\n\n");
+});
+
+// Run in background to stay available for LLM handler requests
+Program.GoBackground();
+</ScriptSource>
+    <ScriptContext>public static class PromptHelpers
+{
+    /**
+     * Helper to format double values for the AI.
+     * Ensures the dot is always used as the decimal separator (Invariant Culture).
+     */
+    public static string Fmt(double val, string unit = "")
+    {
+        if (double.IsNaN(val) || double.IsInfinity(val)) return "N/A";
+        return val.ToString("F1", CultureInfo.InvariantCulture) + unit;
+    }
+
+    /**
+     * Extracts weather conditions, exterior temperature, and wind speed.
+     */
+    public static string GetWeatherStatus(ModuleHelper m)
+    {
+        var condition = m.Parameter("Conditions.Status").Value;
+        if (string.IsNullOrWhiteSpace(condition)) condition = m.Parameter("Conditions.Description").Value;
+
+        var temp = Fmt(m.Parameter("Sensor.Temperature").DecimalValue, "°C");
+        var wind = Fmt(m.Parameter("Sensor.Wind.Speed").DecimalValue, " Kph");
+
+        return $"Weather: {(string.IsNullOrEmpty(condition) ? "Unknown" : condition)} | Exterior Temp: {temp} | Wind: {wind}";
+    }
+
+    /**
+     * Summarizes energy load, daily usage, and active device counts.
+     */
+    public static string GetEnergyStatus(ModuleHelper m)
+    {
+        var load = Fmt(m.Parameter("EnergyMonitor.WattLoad").DecimalValue, "W");
+        var todayKwh = (m.Parameter("EnergyMonitor.WattCounter.Today").DecimalValue / 1000.0).ToString("F2", CultureInfo.InvariantCulture) + " kWh";
+
+        var lights = m.Parameter("EnergyMonitor.OperatingLights").Value;
+        var appliances = m.Parameter("EnergyMonitor.OperatingSwitches").Value;
+
+        return $"Energy: Load {load} | Today's Usage: {todayKwh} (Active -&gt; Lights: {lights}, Appliances: {appliances})";
+    }
+
+    /**
+     * Reports the alarm arming mode and whether the security system is currently triggered.
+     */
+    public static string GetSecurityStatus(ModuleHelper m)
+    {
+        var state = m.Parameter("HomeGenie.SecurityArmed").Value;
+        var triggered = m.Parameter("HomeGenie.SecurityTriggered").DecimalValue &gt; 0 ? " !!ALARM TRIGGERED!!" : "";
+
+        return $"Security: System is {state}{triggered}";
+    }
+
+    /**
+     * Reports ambient temperature, target setpoint, and the current operating state.
+     */
+    public static string GetThermostatStatus(ModuleHelper m)
+    {
+        var ambient = Fmt(m.Parameter("Sensor.Temperature").DecimalValue, "°C");
+        var target = Fmt(m.Parameter("Thermostat.SetPoint.Heating").DecimalValue, "°C");
+        var state = m.Parameter("Thermostat.OperatingState").Value;
+        var mode = m.Parameter("Thermostat.Mode").Value;
+
+        return $"Thermostat: Ambient {ambient} | Target {target} (Mode: {mode}, State: {state})";
+    }
+
+    /**
+     * Extracts a concise status string for any module (Sensors, Actuators, or Programs).
+     * Used for the dynamic System Update/Status report.
+     */
+    public static string GetModuleStatus(ModuleHelper m)
+    {
+        // Skip modules with no name to keep the prompt clean
+        if (string.IsNullOrWhiteSpace(m.Instance.Name)) return "";
+
+        var statusParts = new List&lt;string&gt;();
+
+        // 1. PROGRAMS (Scenarios/Macros)
+        if (m.Instance.DeviceType.ToString() == "Program")
+        {
+            var pStatus = m.Parameter("Program.Status").Value;
+            statusParts.Add("Status: " + (string.IsNullOrEmpty(pStatus) ? "Idle" : pStatus));
+        }
+
+        // 2. SENSORS (Environmental parameters)
+        if (m.HasParameter("Sensor.Temperature"))
+            statusParts.Add("Temp: " + Fmt(m.Parameter("Sensor.Temperature").DecimalValue, "°C"));
+
+        if (m.HasParameter("Sensor.Humidity"))
+            statusParts.Add("Hum: " + Fmt(m.Parameter("Sensor.Humidity").DecimalValue, "%"));
+
+        if (m.HasParameter("Sensor.Luminance"))
+            statusParts.Add("Luminance: " + m.Parameter("Sensor.Luminance").Value + " lux");
+
+        if (m.HasParameter("Sensor.Motion"))
+            statusParts.Add("Motion: " + (m.Parameter("Sensor.Motion").DecimalValue &gt; 0 ? "Detected" : "None"));
+
+        if (m.HasParameter("Meter.Watts"))
+            statusParts.Add("Watts: " + Fmt(m.Parameter("Meter.Watts").DecimalValue, "W"));
+
+        if (m.HasParameter("Meter.Watts.Hour"))
+            statusParts.Add("Watthour: " + Fmt(m.Parameter("Meter.Watts.Hour").DecimalValue, "W/h"));
+
+        if (m.HasParameter("Sensor.DoorWindow"))
+            statusParts.Add("Door/Window: " + (m.Parameter("Sensor.DoorWindow").DecimalValue &gt; 0 ? "Open" : "Closed"));
+
+        // 3. ACTUATORS (Lights, Switches, Dimmer, Shutters)
+        // Reports live state (ON/OFF/%) for the system status update
+        if (m.HasParameter("Status.Level"))
+        {
+            var level = m.Parameter("Status.Level").DecimalValue;
+            string state = (level &gt; 0) ? "ON" : "OFF";
+
+            // Append percentage for dimmers or color lights
+            if (level &gt; 0 &amp;&amp; level &lt;= 1) state = "ON"; // Standard binary
+            else if (level &gt; 1) state += $" ({level}%)";
+
+            statusParts.Add("State: " + state);
+        }
+
+        // Final fallback to ensure the AI knows the device is reachable
+        if (statusParts.Count == 0) statusParts.Add("Status: Online");
+
+        return $"{m.Instance.Name}: {string.Join(", ", statusParts)}";
+    }
+}
+</ScriptContext>
+    <ScriptErrors>[]</ScriptErrors>
+    <Data />
+    <PackageInfo>
+      <Repository>homegenie</Repository>
+      <PackageId>homegenie-ml-ai</PackageId>
+      <PackageVersion>1.0.5</PackageVersion>
+      <Id>context-engine</Id>
+      <Version>1.0.4</Version>
+      <Required>true</Required>
+      <Checksum>48B0C25346A7C81CD6A7158515780BB8</Checksum>
+    </PackageInfo>
+    <Domain>HomeAutomation.HomeGenie.Automation</Domain>
+    <Address>578</Address>
+    <Name>Context Engine</Name>
+    <Description>Centralized service for dynamic AI prompt generation. It populates templates with the list of controllable devices and the live system status (weather, energy, sensors), ensuring total real-time home awareness for the AI.</Description>
+    <Group>Utilities</Group>
+    <Features />
+    <AutoRestartEnabled>false</AutoRestartEnabled>
+    <Cloneable>false</Cloneable>
+    <Type>csharp</Type>
+    <IsEnabled>true</IsEnabled>
+  </ProgramBlock>
+  <ProgramBlock>
+    <ScriptSetup>var systemPromptFile = Path.Combine(Data.GetFolder(), "gemini_system_prompt.txt");
+
+Program.Setup(() =&gt; {
+    // Register this program as Automation Manager
+    Program.Implements(
+        "@AI:Automan",
+        "AI.Automan/Gemini"
+    ).AddOption("ApiKey", "", "1. Google Gemini AI API key", "password")
+     .AddOption("ModelId", "gemini-flash-latest", "2. Model ID", "text")
+     .AddOption("EnableDeepKnowledge", "On", "3. Enable Deep Knowledge (Read programs &amp; widgets)", "checkbox")
+     .AddOption("SystemInstructions", "", "4. System Instructions", $"editor:file:{systemPromptFile}:markdown");
+});
+
+Program.Run();</ScriptSetup>
+    <ScriptSource>// ===================================================================
+// GEMINI AUTOMAN - ASYNC QUEUE &amp; DEBOUNCING
+// ===================================================================
+
+string API_URL = "AI.Automan/Gemini";
+string geminiApiKey = Program.Option("ApiKey").Value.Trim();
+string geminiModelId = Program.Option("ModelId").Value.Trim();
+bool useDeepKnowledge = Program.Option("EnableDeepKnowledge").Value == "On";
+string storeId = Program.Module.Address;
+
+if (geminiApiKey.Length != 39 || !geminiApiKey.StartsWith("AIzaSy") || string.IsNullOrEmpty(geminiModelId)) {
+    Program.Emit("Status.Init", "NotConfigured");
+} else {
+    Program.Emit("Status.Init", "Ready");
+}
+
+bool reconfigureRequired = false;
+
+When.ModuleParameterChanged((module, parameter) =&gt; {
+    if (module.Instance == Program.Module &amp;&amp; parameter.Name.StartsWith("ConfigureOptions.")) {
+        reconfigureRequired = true;
+    }
+
+    string childId = module.Instance.Address;
+    string childName = module.Instance.Name;
+    // REACTIVE MONITORING AND AUTO-CLEANUP
+    if (parameter.Name == "Automan.Program.Status") {
+        string childStatus = parameter.Value;
+        // We only log states other than Completed to avoid spam
+        Program.Log.Info($"Child program '{childName}' (ID: {childId}) reports status: '{childStatus}'");
+    } else if (parameter.Name == "Automan.Program.Request" &amp;&amp; parameter.Value.ToLower() == "quit") {
+        Program.Log.Info($"Received 'Quit' signal from '{childName}' (ID: {childId}). Starting auto-cleanup...");
+        try {
+            Api.Call("HomeAutomation.HomeGenie/Automation/Programs.Disable/" + childId);
+            Program.Log.Info($"Child program {childId} successfully disabled.");
+        } catch (Exception ex) {
+            Program.Log.Error($"Error disabling child program {childId}: {ex.Message}");
+        }
+    }
+
+    return true;
+});
+
+// Cache &amp; Deep Knowledge Management Variables
+string currentCacheName = "";
+DateTime cacheExpiration = DateTime.MinValue;
+
+Func&lt;string, string&gt; GetSlimmedXml = (filePath) =&gt; {
+    if (!File.Exists(filePath)) return "";
+    try {
+        var doc = new System.Xml.XmlDocument();
+        doc.Load(filePath);
+        StringBuilder sb = new StringBuilder();
+        foreach (System.Xml.XmlNode pg in doc.SelectNodes("//ProgramBlock[IsEnabled='true']")) {
+            string name = pg.SelectSingleNode("Name")?.InnerText ?? "Unnamed";
+            string setup = pg.SelectSingleNode("ScriptSetup")?.InnerText ?? "";
+            string source = pg.SelectSingleNode("ScriptSource")?.InnerText ?? "";
+            if (string.IsNullOrWhiteSpace(source) &amp;&amp; string.IsNullOrWhiteSpace(setup)) continue;
+            sb.AppendLine($"PROGRAM: {name}");
+            if (!string.IsNullOrWhiteSpace(setup)) sb.AppendLine("SETUP:\n" + setup);
+            if (!string.IsNullOrWhiteSpace(source)) sb.AppendLine("SOURCE:\n" + source);
+            sb.AppendLine("---");
+        }
+        return sb.ToString();
+    } catch { return "Error slimming XML..."; }
+};
+
+Func&lt;string&gt; BuildContext = () =&gt; {
+    var promptFile = Path.Combine(Data.GetFolder(), "gemini_system_prompt.txt");
+    string context = "";
+    try { context = File.ReadAllText(promptFile); } catch { context = "You are a HomeGenie developer."; }
+
+    if (useDeepKnowledge) {
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine(context);
+        sb.AppendLine("\n=======================================================");
+        sb.AppendLine("HOMEGENIE SYSTEM SOURCE CODE (REFERENCE MATERIAL)");
+        sb.AppendLine("=======================================================\n");
+
+        try {
+            string programsFile = Path.Combine("./", "programs.xml");
+            if (File.Exists(programsFile)) {
+                sb.AppendLine("--- FILE: programs.xml (C# Backend Logic) ---");
+                sb.AppendLine(GetSlimmedXml(programsFile));
+                sb.AppendLine("---------------------------------------------\n");
+            }
+        } catch (Exception ex) { Program.Log.Warn("Could not read programs.xml: " + ex.Message); }
+
+        context = sb.ToString();
+    }
+
+    context += "\n\nIMPORTANT INSTRUCTIONS FOR Automan:\n" +
+    "You are the HomeGenie Automan (Automation Manager). You must create an autonomous C# automation program based on the user's request.\n" +
+    "- Provide a clear Name, Setup code, and Main code.\n" +
+    "- You MUST use `Program.Emit(\"Automan.Program.Status\", \"Running\");` inside your Main block to report your state.\n" +
+    "- Return ONLY valid C# code. Do NOT generate UI widgets.";
+
+    return context;
+};
+
+DateTime rateLimitResetTime = DateTime.MinValue;
+bool isQuotaExceeded = false;
+
+Func&lt;string, bool&gt; EnsureCache = (fullContext) =&gt; {
+    if (!useDeepKnowledge) return false;
+    if (!string.IsNullOrEmpty(currentCacheName) &amp;&amp; DateTime.UtcNow &lt; cacheExpiration) return true;
+
+    Program.Log.Info("Uploading context to Gemini Cache...");
+    var cacheUrl = $"https://generativelanguage.googleapis.com/v1beta/cachedContents?key={geminiApiKey}";
+    var cachePayload = new {
+        model = $"models/{geminiModelId}",
+        system_instruction = new { parts = new[] { new { text = fullContext } } },
+        ttl = "3600s"
+    };
+
+    try {
+        var data = Net.WebService(cacheUrl).AddHeader("Content-Type", "application/json").Post(JsonConvert.SerializeObject(cachePayload)).GetData();
+        if (data != null &amp;&amp; data.name != null) {
+            currentCacheName = data.name.ToString();
+            cacheExpiration = DateTime.UtcNow.AddMinutes(55);
+            return true;
+        }
+    } catch { currentCacheName = ""; }
+    return false;
+};
+
+// ===================================================================
+// THE CENTRAL GENERATION ENGINE (AUTOMAN)
+// ===================================================================
+Func&lt;string, bool, string&gt; ProcessPrompt = (userCommand, isBackground) =&gt; {
+    var result = Api.Call("System.Utility/ChatHistory/Get", new { StoreId = storeId });
+    var payloadContents = new List&lt;ChatMessage&gt;();
+    if (result != null) {
+        payloadContents = JArray.FromObject(result).ToObject&lt;List&lt;ChatMessage&gt;&gt;();
+    }
+
+    string displayCommand = isBackground ? $"[Scheduled Task]\n{userCommand}" : userCommand;
+    var userMessage = ChatMessage.Create("user", displayCommand);
+
+    Api.Call("System.Utility/ChatHistory/Add", new { StoreId = storeId, Message = userMessage });
+    payloadContents.Add(userMessage);
+
+    string fullContext = BuildContext();
+    bool hasCache = EnsureCache(fullContext);
+
+    var genConfig = new {
+        temperature = 0.2,
+        response_mime_type = "application/json",
+        response_schema = new {
+            type = "object",
+            properties = new {
+                explanation = new { type = "string" },
+                name = new { type = "string" },
+                language = new { type = "string", @enum = new[] { "csharp", "python", "javascript" } },
+                setup = new { type = "string" },
+                main = new { type = "string" },
+                context = new { type = "string" }
+            },
+            required = new[] { "explanation", "name", "setup", "main" }
+        }
+    };
+
+    int maxAttempts = 5;
+    int currentAttempt = 1;
+    bool isDeployed = false;
+    string programId = "";
+    string finalUiResponse = "";
+
+    List&lt;string&gt; explanationsList = new List&lt;string&gt;();
+
+    while (currentAttempt &lt;= maxAttempts &amp;&amp; !isDeployed)
+    {
+        object payload;
+        if (hasCache) {
+            payload = new { contents = payloadContents, cached_content = currentCacheName, generationConfig = genConfig };
+        } else {
+            payload = new { contents = payloadContents, system_instruction = new { parts = new[] { new { text = fullContext } } }, generationConfig = genConfig };
+        }
+
+        try
+        {
+            string payloadJson = JsonConvert.SerializeObject(payload, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
+            string requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{geminiModelId}:generateContent?key={geminiApiKey}";
+
+            var data = Net.WebService(requestUrl).WithTimeout(180).AddHeader("Content-Type", "application/json").Post(payloadJson).GetData();
+
+            if (data != null &amp;&amp; data.candidates != null &amp;&amp; data.candidates.Count &gt; 0)
+            {
+                string rawResponse = data.candidates[0].content.parts[0].text;
+                var jsonObj = JObject.Parse(rawResponse);
+
+                string pExplanation = jsonObj["explanation"]?.ToString() ?? "";
+                string pName = jsonObj["name"]?.ToString() ?? "Automan_Generated_Program";
+                string pLanguage = jsonObj["language"]?.ToString() ?? "csharp";
+
+                string pContext = jsonObj["context"]?.ToString() ?? "";
+                string pSetup = jsonObj["setup"]?.ToString() ?? "";
+                string pMain = jsonObj["main"]?.ToString() ?? "";
+                if (!string.IsNullOrWhiteSpace(pExplanation)) {
+                    explanationsList.Add(pExplanation);
+                }
+
+                // Phase 1: Program Creation
+                string programDescription = explanationsList.FirstOrDefault() ?? ""; // use always the initial description
+                if (string.IsNullOrEmpty(programId)) {
+                    string programBlockJson = JsonConvert.SerializeObject(new { Type = pLanguage, Group = "Automan", Name = $"{pName}", Description = $"{programDescription}", IsEnabled = false });
+                    var addRes = Api.Call("HomeAutomation.HomeGenie/Automation/Programs.Add", programBlockJson);
+                    if (addRes != null) {
+                        string resStr = addRes is string ? (string)addRes : JsonConvert.SerializeObject(addRes);
+                        var jRes = JObject.Parse(resStr);
+                        programId = jRes["ResponseValue"]?.ToString() ?? jRes["response"]?["ResponseValue"]?.ToString();
+                    }
+                }
+
+                // Check for valid ID extraction
+                if (string.IsNullOrEmpty(programId)) {
+                    var errorPayload = new {
+                        automan_deploy = new {
+                            status = "error",
+                            error_message = "Critical Error: Unable to extract the ID of the newly created program."
+                        }
+                    };
+                    finalUiResponse = JsonConvert.SerializeObject(errorPayload, Formatting.Indented);
+                    break;
+                }
+
+                // Phase 2: Compilation and Code Injection
+                string compilePayloadJson = JsonConvert.SerializeObject(new { Type = pLanguage, Address = int.Parse(programId), Group = "Automan", Name = $"{pName}", Description = $"{programDescription}", ScriptSetup = pSetup, ScriptSource = pMain, ScriptContext = pContext, IsEnabled = false });
+                var compileRes = Api.Call("HomeAutomation.HomeGenie/Automation/Programs.Compile", compilePayloadJson);
+
+                bool hasCompilerErrors = false;
+                string errorString = "";
+
+                if (compileRes != null) {
+                    try {
+                        string resStr = compileRes is string ? (string)compileRes : JsonConvert.SerializeObject(compileRes);
+                        var jToken = JToken.Parse(resStr);
+                        JToken compilerOutput = null;
+
+                        if (jToken.Type == JTokenType.Array) compilerOutput = jToken;
+                        else if (jToken.Type == JTokenType.Object) compilerOutput = jToken["ResponseValue"] ?? jToken["response"]?["ResponseValue"];
+
+                        if (compilerOutput != null &amp;&amp; compilerOutput.Type == JTokenType.Array &amp;&amp; compilerOutput.HasValues) {
+                            hasCompilerErrors = true;
+                            errorString = string.Join("\n", compilerOutput.Select(e =&gt; e.ToString()));
+                        }
+                    } catch (Exception ex) { Program.Log.Warn($"Compiler output parsing failed: {ex.Message}"); }
+                }
+
+                // Phase 3: Self-Healing or Deployment
+                if (hasCompilerErrors)
+                {
+                    Program.Log.Warn($"Attempt {currentAttempt} failed. Errors: {errorString}");
+                    payloadContents.Add(ChatMessage.Create("model", rawResponse));
+                    payloadContents.Add(ChatMessage.Create("user", $"COMPILATION FAILED with the following errors:\n{errorString}\n\nPlease fix the C# code. Ensure variables exist and syntax is correct. Return the complete corrected JSON."));
+                    currentAttempt++;
+                    Pause(10);
+                }
+                else
+                {
+                    isDeployed = true;
+                    Api.Call("HomeAutomation.HomeGenie/Automation/Programs.Enable/" + programId);
+
+                    // Generate structured success metadata
+                    var successPayload = new {
+                        automan_deploy = new {
+                            status = "success",
+                            program_id = programId,
+                            name = pName,
+                            language = pLanguage,
+                            explanation = pExplanation,
+                            attempts = currentAttempt
+                        }
+                    };
+                    finalUiResponse = JsonConvert.SerializeObject(successPayload, Formatting.Indented);
+
+                    var modelResponse = ChatMessage.Create("model", finalUiResponse);
+                    Api.Call("System.Utility/ChatHistory/Add", new { StoreId = storeId, Message = modelResponse });
+
+                    Program.Emit("Widget.Refresh", "history_updated");
+                }
+            } else { break; }
+        }
+        catch (Exception ex)
+        {
+            Program.Log.Error($"API Error: {ex.Message}");
+            if (ex.Message.Contains("(429)")) {
+                isQuotaExceeded = true;
+                rateLimitResetTime = DateTime.UtcNow.AddMinutes(2);
+                if (isBackground) throw; // Rethrow to re-queue the task
+
+                var quotaPayload = new {
+                    automan_deploy = new {
+                        status = "quota_exceeded",
+                        error_message = "Rate limit reached (429). The system is pausing requests."
+                    }
+                };
+                finalUiResponse = JsonConvert.SerializeObject(quotaPayload, Formatting.Indented);
+            }
+            else
+            {
+                var sysErrorPayload = new {
+                    automan_deploy = new {
+                        status = "error",
+                        error_message = $"System Error: {ex.Message}"
+                    }
+                };
+                finalUiResponse = JsonConvert.SerializeObject(sysErrorPayload, Formatting.Indented);
+            }
+            break;
+        }
+    }
+
+    // Final fallback if all retry attempts fail
+    if (!isDeployed &amp;&amp; string.IsNullOrEmpty(finalUiResponse)) {
+        var failPayload = new {
+            automan_deploy = new {
+                status = "compile_failed",
+                attempts = maxAttempts,
+                error_message = $"Deploy Failure. Failed to generate valid code after {maxAttempts} attempts."
+            }
+        };
+        finalUiResponse = JsonConvert.SerializeObject(failPayload, Formatting.Indented);
+        Api.Call("System.Utility/ChatHistory/Add", new { StoreId = storeId, Message = ChatMessage.Create("model", finalUiResponse) });
+    }
+
+    return finalUiResponse;
+};
+
+List&lt;string&gt; taskQueue = new List&lt;string&gt;();
+object queueLock = new object();
+
+Api.Handle($"{API_URL}/Prompt.Submit", (userCommand) =&gt; {
+    if (isQuotaExceeded &amp;&amp; DateTime.UtcNow &lt; rateLimitResetTime) {
+        return new ResponseText($"**AI Temporarily Unavailable:** Rate limit reached.");
+    }
+    var request = Api.Parse(userCommand);
+    var data = userCommand is string ? WebUtility.UrlDecode(userCommand as string) : request?.Data is string ? request?.Data as string : Encoding.Default.GetString(request?.Data as byte[]);
+    string response = ProcessPrompt(data, false);
+    return new ResponseText(response);
+});
+
+// Agentic task scheduling
+Api.Handle($"{API_URL}/Prompt.Schedule", (userCommand) =&gt; {
+    var request = Api.Parse(userCommand);
+    var data = userCommand is string ? WebUtility.UrlDecode(userCommand as string) : request?.Data is string ? request?.Data as string : Encoding.Default.GetString(request?.Data as byte[]);
+    lock (queueLock) {
+        taskQueue.Add(data);
+    }
+    Program.Log.Info($"New task queued. Tasks waiting: {taskQueue.Count}");
+    return new ResponseText("Task scheduled successfully.");
+});
+
+// Prompt.Ask for text-only processing
+Api.Handle($"{API_URL}/Prompt.Ask", (prompt) =&gt; {
+    var request = Api.Parse(prompt);
+    var promptText = prompt is string ? WebUtility.UrlDecode(prompt as string) : request?.Data is string ? request?.Data as string : Encoding.Default.GetString(request?.Data as byte[]);
+    var payload = new { contents = new[] { new { role = "user", parts = new[] { new { text = promptText } } } } };
+    try {
+        string payloadJson = JsonConvert.SerializeObject(payload);
+        string requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{geminiModelId}:generateContent?key={geminiApiKey}";
+        var data = Net.WebService(requestUrl).WithTimeout(180).AddHeader("Content-Type", "application/json").Post(payloadJson).GetData();
+        if (data != null &amp;&amp; data.candidates != null &amp;&amp; data.candidates.Count &gt; 0) {
+            return data.candidates[0].content.parts[0].text.ToString();
+        }
+    } catch (Exception ex) { return new ResponseText($"Error: {ex.Message}"); }
+    return new ResponseText("Empty AI response.");
+});
+
+Api.Handle($"{API_URL}/{API_HISTORY_GET}", (p) =&gt; Api.Call("System.Utility/ChatHistory/Get", new { StoreId = storeId }));
+Api.Handle($"{API_URL}/{API_HISTORY_CLEAR}", (p) =&gt; Api.Call("System.Utility/ChatHistory/Clear", new { StoreId = storeId }));
+Api.Handle($"{API_URL}/{API_HISTORY_REMOVE_AT}", (i) =&gt; Api.Call("System.Utility/ChatHistory/RemoveAt", new { StoreId = storeId, Index = i }));
+Api.Handle($"{API_URL}/{API_HISTORY_EXPORT}", (p) =&gt; Api.Call("System.Utility/ChatHistory/Export", new { StoreId = storeId }));
+Api.Handle($"{API_URL}/{API_HISTORY_IMPORT}", (p) =&gt; Api.Call("System.Utility/ChatHistory/Import", new { StoreId = storeId, Data = (p as dynamic).Data }));
+
+// ===================================================================
+// AUTOMAN WORKER
+// ===================================================================
+while (Program.IsRunning &amp;&amp; !reconfigureRequired) {
+
+    if (isQuotaExceeded) {
+        if (DateTime.UtcNow &lt; rateLimitResetTime) {
+            Pause(5);
+            continue;
+        } else {
+            isQuotaExceeded = false;
+            Program.Log.Info($"429 rate limit expired. Restarting queue.");
+        }
+    }
+
+    string nextTask = null;
+    lock (queueLock) {
+        if (taskQueue.Count &gt; 0) {
+            nextTask = taskQueue[0];
+            taskQueue.RemoveAt(0); // (FIFO)
+        }
+    }
+
+    if (nextTask != null) {
+        Program.Log.Info($"Dequeued new task...");
+        try {
+            ProcessPrompt(nextTask, true);
+            Pause(3);
+        } catch (Exception ex) {
+            if (ex.Message.Contains("(429)")) {
+                Program.Log.Warn($"Rate limit hitted. Re-queuing task.");
+                lock (queueLock) {
+                    taskQueue.Insert(0, nextTask);
+                }
+            } else {
+                Program.Log.Error($"Critical error executing task: {ex.Message}");
+            }
+        }
+    }
+
+    Pause(1);
+}
+</ScriptSource>
+    <ScriptContext>const string API_HISTORY_GET = "History.Get";
+const string API_HISTORY_CLEAR = "History.Clear";
+const string API_HISTORY_REMOVE_AT = "History.RemoveAt";
+const string API_HISTORY_EXPORT = "History.Export";
+const string API_HISTORY_IMPORT = "History.Import";
+
+public class MessagePart {
+    [JsonProperty("text")]
+    public string Text { get; set; }
+}
+
+public class ChatMessage {
+    [JsonProperty("role")]
+    public string Role { get; set; }[JsonProperty("parts")]
+    public List&lt;MessagePart&gt; Parts { get; set; } = new List&lt;MessagePart&gt;();
+
+    public static ChatMessage Create(string role, string text) {
+        return new ChatMessage {
+            Role = role,
+            Parts = new List&lt;MessagePart&gt; { new MessagePart { Text = text } }
+        };
+    }
+}</ScriptContext>
+    <ScriptErrors>[]</ScriptErrors>
+    <Data />
+    <PackageInfo>
+      <Repository>homegenie</Repository>
+      <PackageId>homegenie-ml-ai</PackageId>
+      <PackageVersion>1.0.4</PackageVersion>
+      <Id>gemini-automan</Id>
+      <Version>1.0.4</Version>
+      <Required>true</Required>
+      <Checksum>05BDE67BD7432A1491D9F03FAED1899E</Checksum>
+    </PackageInfo>
+    <Domain>HomeAutomation.HomeGenie.Automation</Domain>
+    <Address>932</Address>
+    <Name>Gemini Automan</Name>
+    <Description>Your smart Automation Manager. Turn natural language into agentic workflows: it writes, tests, and executes C# programs in real-time to complete any given task. To activate this feature, enter a valid API key. Follow the instructions at https://aistudio.google.com/app/apikey to get a free API key.</Description>
+    <Group>AI - Machine Learning</Group>
+    <Features />
+    <AutoRestartEnabled>false</AutoRestartEnabled>
+    <Cloneable>false</Cloneable>
+    <Type>csharp</Type>
+    <IsEnabled>true</IsEnabled>
+  </ProgramBlock>
+  <ProgramBlock>
+    <ScriptSetup>// Path to the external markdown file for system instructions
+var systemPromptFile = Path.Combine(Data.GetFolder(), "gemini_system_prompt.txt");
+
+// This method is used to register this program as a "AI intent handler"
+Program.Implements(
+    "@AI:IntentHandler",
+    API_URL
+).AddOption(OPTION_API_KEY, "", "1. Google Gemini AI API key", "password")
+ .AddOption(OPTION_MODEL_ID, DEFAULT_MODEL_ID, "2. Model ID", "text")
+ .AddOption(OPTION_SEND_CONTEXT_DATA, "", "3. Share system and module context with the AI", "checkbox")
+ .AddOption(OPTION_SYSTEM_INSTRUCTIONS, "", "4. System Instructions", $"editor:file:{systemPromptFile}:markdown")
+ .Run();
+</ScriptSetup>
+    <ScriptSource>// 1. Validate configuration
+string geminiApiKey = Program.Option("ApiKey").Value.Trim();
+string geminiModelId = Program.Option("ModelId").Value.Trim();
+if (geminiApiKey.Length != 39 || !geminiApiKey.StartsWith("AIzaSy") || string.IsNullOrEmpty(geminiModelId))
+{
+    string error = "Gemini Intent Handler is not properly configured.";
+    //Program.Notify($"ERROR: {error} Please configure the program options.");
+    Program.Emit("Status.Init", "NotConfigured");
+}
+else
+{
+    Program.Emit("Status.Init", "Ready");
+}
+
+bool reconfigureRequired = false;
+// Register event handler to trigger a restart if configuration options change.
+When.ModuleParameterChanged((module, parameter) =&gt; {
+  if (module.Instance == Program.Module &amp;&amp; parameter.Name.StartsWith("ConfigureOptions.")) {
+    reconfigureRequired = true;
+  }
+  return true;
+});
+
+// 2. Build the current device list
+string allowedTypes = "Dimmer,Light,Color,Switch,Shutter,DoorLock,Thermostat";
+
+// ===================================================================
+// API HANDLER: Submit a new intent (user command)
+// ===================================================================
+Api.Handle($"{API_URL}/{API_PROMPT_SUBMIT}", (userCommand) =&gt;
+{
+    var request = Api.Parse(userCommand);
+    var msg = userCommand is string ? WebUtility.UrlDecode(userCommand as string) : request?.Data is string ? request?.Data as string : Encoding.Default.GetString(request?.Data as byte[]);
+
+    // Get the current history from the centralized service
+    var storeId = Program.Module.Address;
+    var result = Api.Call("System.Utility/ChatHistory/Get", new { StoreId = storeId });
+    var payloadContents = JArray.FromObject(result).ToObject&lt;List&lt;ChatMessage&gt;&gt;();
+
+    // Prepare the current user message
+    var userMessage = ChatMessage.Create("user", msg);
+
+    // We use a List of objects for the active session to support mixed types
+    // (the strongly typed ChatMessage history and the anonymous tool call objects)
+    var sessionContents = new List&lt;object&gt;();
+    foreach (var c in payloadContents) sessionContents.Add(c);
+    sessionContents.Add(userMessage);
+
+    // Path to the external markdown file for system instructions
+    var systemPromptFile = Path.Combine(Data.GetFolder(), "gemini_system_prompt.txt");
+    var promptText = "";
+    try { promptText = File.ReadAllText(systemPromptFile); } catch (Exception) { /* Handle error */ }
+
+    bool sendContextData = (Program.Option(OPTION_SEND_CONTEXT_DATA).Value == "On");
+    object toolsList = null;
+
+    if (sendContextData)
+    {
+        // If context data is enabled, instruct the model to use the tool and declare it
+        promptText = promptText.Replace("\n%%AVAILABLE_DEVICES%%", "%%AVAILABLE_DEVICES%%\n\n[IMPORTANT] To read the real-time status of the home (weather, energy, sensors, devices states), you MUST call the `get_home_status` function.");
+
+        toolsList = new[] {
+            new {
+                function_declarations = new[] {
+                    new {
+                        name = "get_home_status",
+                        description = "Retrieves the real-time status of all home devices, including lights, doors, environmental sensors (weather, temperature), energy consumption, and alarm system. Call this function when the user asks about the state of the house, or to check if a device is already in the requested state."
+                    },
+                    new {
+                        name = "get_time",
+                        description = "Retrieves the current date/time. Call this function when you need to know the current date/time."
+                    }
+                }
+            }
+        };
+    }
+
+    var systemPrompt = (string)Api.Call("System.Utility/ContextEngine/Render", promptText);
+
+    try
+    {
+        bool toolCallActive = true;
+        int loopCount = 0;
+        string rawGeminiResponseJson = "";
+
+        // Loop to handle tool calling sequences (max 3 iterations to prevent infinite loops)
+        while (toolCallActive &amp;&amp; loopCount &lt; 3)
+        {
+            loopCount++;
+
+            var payload = new
+            {
+                contents = sessionContents,
+                system_instruction = new { parts = new[] { new { text = systemPrompt } } },
+                tools = toolsList,
+                generationConfig = new { temperature = 0.3 }
+            };
+
+            // Serialize with Ignore so 'tools' is omitted from the JSON payload if it is null
+            string payloadJson = JsonConvert.SerializeObject(payload, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
+            string geminiRequestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{geminiModelId}:generateContent?key={geminiApiKey}";
+
+            var data = Net.WebService(geminiRequestUrl).WithTimeout(180).AddHeader("Content-Type", "application/json").Post(payloadJson).GetData();
+
+            // Safely navigate the dynamic response
+            dynamic candidates = data?.candidates;
+            if (candidates == null)
+            {
+                throw new Exception($"Received an empty or invalid candidates array. Response: {JsonConvert.SerializeObject(data)}");
+            }
+
+            dynamic modelContent = candidates[0]?.content;
+            dynamic part = modelContent?.parts?[0];
+
+            if (part == null)
+            {
+                throw new Exception("Received an empty or invalid response part from the AI.");
+            }
+
+            if (part.functionCall != null)
+            {
+                string functionName = (string)part.functionCall.name;
+
+                string callId = null;
+                try { callId = (string)part.functionCall.id; } catch { }
+
+                sessionContents.Add(modelContent);
+
+                string toolExecutionResult = "";
+                if (functionName == "get_home_status")
+                {
+                    toolExecutionResult = (string)Api.Call("System.Utility/ContextEngine/GetStatus", null);
+                    if (string.IsNullOrWhiteSpace(toolExecutionResult)) toolExecutionResult = "System status is currently unavailable.";
+                }
+                else if (functionName == "get_time")
+                {
+                    toolExecutionResult = DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss zzz");
+                }
+                else
+                {
+                    toolExecutionResult = $"Error: Function '{functionName}' not found.";
+                }
+
+                sessionContents.Add(new {
+                    role = "user",
+                    parts = new[] {
+                        new {
+                            functionResponse = new {
+                                name = functionName,
+                                id = callId,
+                                response = new {
+                                    content = toolExecutionResult
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Re-enter the loop: Gemini will now see the tool result and generate the final answer
+                continue;
+            }
+            else if (part.text != null)
+            {
+                // No tool called, we received the final text response
+                rawGeminiResponseJson = (string)part.text;
+                toolCallActive = false;
+            }
+            else
+            {
+                throw new Exception("Response part contained neither text nor functionCall.");
+            }
+        }
+
+        if (string.IsNullOrEmpty(rawGeminiResponseJson))
+        {
+            string error = "The AI failed to generate a valid text response after processing.";
+            Program.Notify($"ERROR: {error}");
+            return new ResponseText($"**Error:** {error}");
+        }
+
+        string jsonResponse = rawGeminiResponseJson;
+        string thoughtsChain = "";
+
+        string patternJsonBlock = @"```json\s*({[\s\S]*?})\s*```";
+        var matchJsonBlock = Regex.Match(rawGeminiResponseJson, patternJsonBlock, RegexOptions.Singleline);
+
+        if (matchJsonBlock.Success)
+        {
+            jsonResponse = matchJsonBlock.Groups[1].Value;
+            thoughtsChain = rawGeminiResponseJson.Substring(0, matchJsonBlock.Index).Trim();
+        }
+        else
+        {
+            int lastBraceIndex = rawGeminiResponseJson.LastIndexOf('}');
+            if (lastBraceIndex != -1)
+            {
+                int firstBraceIndex = rawGeminiResponseJson.LastIndexOf('{', lastBraceIndex);
+                if (firstBraceIndex != -1)
+                {
+                    string potentialJson = rawGeminiResponseJson.Substring(firstBraceIndex);
+                    try
+                    {
+                        JObject.Parse(potentialJson); // Validate JSON
+                        jsonResponse = potentialJson;
+                        thoughtsChain = rawGeminiResponseJson.Substring(0, firstBraceIndex).Trim();
+                    }
+                    catch (JsonReaderException) { /* Invalid block, ignored */ }
+                }
+            }
+        }
+
+        var extracted = Api.Call($"{Program.Module.Domain}/940/Extract/{WebUtility.UrlEncode(jsonResponse)}");
+        var messageParts = (extracted as List&lt;string&gt;)
+                .Select(segment =&gt; new MessagePart { Text = segment + "\n" })
+                .ToList();
+
+        // --- 6. UPDATE CENTRALIZED HISTORY SERVICE ---
+
+        // A. Add the User message to the system service
+        Api.Call("System.Utility/ChatHistory/Add", new {
+            StoreId = storeId,
+            Message = userMessage
+        });
+
+        // B. Create the Model response message using the interleaved parts [text, api-call, text...]
+        var modelResponse = new ChatMessage
+        {
+            Role = "model",
+            Parts = messageParts
+        };
+
+        // C. Add the Model response to the system service
+        // The service automatically handles persistence (saving to JSON)
+        // Note: Ephemeral tool calls/responses from the session are intentionally omitted from persistent chat history
+        Api.Call("System.Utility/ChatHistory/Add", new {
+            StoreId = storeId,
+            Message = modelResponse
+        });
+
+        // 7. Return the friendly answer to the UI
+        return new ResponseText(String.Join('\n', (extracted as List&lt;string&gt;)));
+    }
+    catch (Exception ex)
+    {
+        Program.Notify($"Error while calling Gemini API: {ex.Message}");
+        return new ResponseText($"**Error:** An exception occurred while contacting the AI service. Please check the logs.\n\n`{ex.Message}`");
+    }
+});
+
+var storeId = Program.Module.Address;
+// ===================================================================
+// CHAT HISTORY API HANDLERS
+// ===================================================================
+Api.Handle($"{API_URL}/{API_HISTORY_GET}", (p) =&gt; Api.Call("System.Utility/ChatHistory/Get", new { StoreId = storeId }));
+Api.Handle($"{API_URL}/{API_HISTORY_CLEAR}", (p) =&gt; Api.Call("System.Utility/ChatHistory/Clear", new { StoreId = storeId }));
+Api.Handle($"{API_URL}/{API_HISTORY_REMOVE_AT}", (i) =&gt; Api.Call("System.Utility/ChatHistory/RemoveAt", new { StoreId = storeId, Index = i }));
+Api.Handle($"{API_URL}/{API_HISTORY_EXPORT}", (p) =&gt; Api.Call("System.Utility/ChatHistory/Export", new { StoreId = storeId }));
+Api.Handle($"{API_URL}/{API_HISTORY_IMPORT}", (p) =&gt; Api.Call("System.Utility/ChatHistory/Import", new { StoreId = storeId, Data = (p as dynamic).Data }));
+
+
+// Run the program in the background
+while (Program.IsRunning &amp;&amp; !reconfigureRequired)
+{
+    Pause(1);
+}
+</ScriptSource>
+    <ScriptContext>#using System.Text.RegularExpressions
+
+const string API_URL = "AI.IntentHandlers/Gemini";
+
+const string API_PROMPT_SUBMIT = "Prompt.Submit";
+const string API_HISTORY_GET = "History.Get";
+const string API_HISTORY_CLEAR = "History.Clear";
+const string API_HISTORY_REMOVE_AT = "History.RemoveAt";
+const string API_HISTORY_EXPORT = "History.Export";
+const string API_HISTORY_IMPORT = "History.Import";
+
+const string OPTION_API_KEY = "ApiKey";
+const string OPTION_MODEL_ID = "ModelId";
+const string OPTION_SEND_CONTEXT_DATA = "SendContextData";
+const string OPTION_SYSTEM_INSTRUCTIONS = "SystemInstructions";
+
+const string DEFAULT_MODEL_ID = "gemini-flash-latest";
+
+
+// POJO
+
+public class MessagePart {
+    [JsonProperty("text")]
+    public string Text { get; set; }
+}
+public class ChatMessage {
+    [JsonProperty("role")]
+    public string Role { get; set; }
+    [JsonProperty("parts")]
+    public List&lt;MessagePart&gt; Parts { get; set; } = new List&lt;MessagePart&gt;();
+    public static ChatMessage Create(string role, string text) {
+        return new ChatMessage { Role = role, Parts = new List&lt;MessagePart&gt; { new MessagePart { Text = text } } };
+    }
+}
+</ScriptContext>
+    <ScriptErrors>[]</ScriptErrors>
+    <Data />
+    <PackageInfo>
+      <Repository>homegenie</Repository>
+      <PackageId>homegenie-ml-ai</PackageId>
+      <PackageVersion>1.0.4</PackageVersion>
+      <Id>gemini-intent-handler</Id>
+      <Version>1.0.16</Version>
+      <Required>true</Required>
+      <Checksum>DA2C87D3E2682B3B0FAC29C3701D9F83</Checksum>
+    </PackageInfo>
+    <Domain>HomeAutomation.HomeGenie.Automation</Domain>
+    <Address>930</Address>
+    <Name>Gemini Intent Handler</Name>
+    <Description>Enables natural language control for your smart system using Google's Gemini AI.
+To activate this feature, enter a valid API key.
+Follow the instructions at https://aistudio.google.com/app/apikey to get a free API key.</Description>
+    <Group>AI - Machine Learning</Group>
+    <Features />
+    <AutoRestartEnabled>false</AutoRestartEnabled>
+    <Cloneable>true</Cloneable>
+    <Type>csharp</Type>
+    <IsEnabled>true</IsEnabled>
+  </ProgramBlock>
+  <ProgramBlock>
+    <ScriptSetup>// Path to the external markdown file for system instructions
+var systemPromptFile = Path.Combine(Data.GetFolder(), "gemini_system_prompt.txt");
+
+Program.Setup(() =&gt; {
+    // This method is used to register this program as a "AI intent handler"
+    Program.Implements(
+        "@AI:WidgetGenie",
+        "AI.WidgetGenie/Gemini"
+    ).AddOption("ApiKey", "", "1. Google Gemini AI API key", "password")
+     .AddOption("ModelId", "gemini-flash-latest", "2. Model ID", "text")
+     .AddOption("EnableDeepKnowledge", "On", "3. Enable Deep Knowledge (Read programs &amp; widgets)", "checkbox")
+     .AddOption("SystemInstructions", "", "4. System Instructions", $"editor:file:{systemPromptFile}:markdown");
+});
+
+Program.Run();
+</ScriptSetup>
+    <ScriptSource>// ===================================================================
+// GEMINI WIDGET GENIE - WITH DEEP KNOWLEDGE &amp; CACHING
+// ===================================================================
+
+string API_URL = "AI.WidgetGenie/Gemini";
+string geminiApiKey = Program.Option("ApiKey").Value.Trim();
+string geminiModelId = Program.Option("ModelId").Value.Trim();
+bool useDeepKnowledge = Program.Option("EnableDeepKnowledge").Value == "On";
+
+if (geminiApiKey.Length != 39 || !geminiApiKey.StartsWith("AIzaSy") || string.IsNullOrEmpty(geminiModelId)) {
+    Program.Emit("Status.Init", "NotConfigured");
+} else {
+    Program.Emit("Status.Init", "Ready");
+}
+
+bool reconfigureRequired = false;
+When.ModuleParameterChanged((module, parameter) =&gt; {
+  if (module.Instance == Program.Module &amp;&amp; parameter.Name.StartsWith("ConfigureOptions.")) {
+    reconfigureRequired = true;
+  }
+  return true;
+});
+
+string storeId = Program.Module.Address;
+
+// Cache Management Variables
+string currentCacheName = "";
+DateTime cacheExpiration = DateTime.MinValue;
+Func&lt;string, string&gt; GetSlimmedXml = (filePath) =&gt; {
+    if (!File.Exists(filePath)) return "";
+    try {
+        var doc = new System.Xml.XmlDocument();
+        doc.Load(filePath);
+        StringBuilder sb = new StringBuilder();
+        var programs = doc.SelectNodes("//ProgramBlock");
+        foreach (System.Xml.XmlNode pg in programs) {
+//        foreach (System.Xml.XmlNode pg in doc.SelectNodes("//ProgramBlock[IsEnabled='true']")) {
+            string name = pg.SelectSingleNode("Name")?.InnerText ?? "Unnamed";
+            string address = pg.SelectSingleNode("Address")?.InnerText ?? "0";
+            string setup = pg.SelectSingleNode("ScriptSetup")?.InnerText ?? "";
+            string source = pg.SelectSingleNode("ScriptSource")?.InnerText ?? "";
+            string context = pg.SelectSingleNode("ScriptContext")?.InnerText ?? "";
+
+            if (string.IsNullOrWhiteSpace(source) &amp;&amp; string.IsNullOrWhiteSpace(setup)) continue;
+
+            sb.AppendLine($"--- PROGRAM: {address} NAME: {name} ---");
+            if (!string.IsNullOrWhiteSpace(setup)) sb.AppendLine("[SETUP]\n" + setup);
+            if (!string.IsNullOrWhiteSpace(source)) sb.AppendLine("[MAIN]\n" + source);
+            if (!string.IsNullOrWhiteSpace(context)) sb.AppendLine("[CONTEXT]\n" + context);
+            sb.AppendLine($"--- END PROGRAM: {address} ---\n");
+        }
+        return sb.ToString();
+    } catch {
+        return "Error slimming XML, fallback to raw read...";
+    }
+};
+// --- FUNCTION: BUILD DEEP CONTEXT ---
+Func&lt;string&gt; BuildContext = () =&gt; {
+    var promptFile = Path.Combine(Data.GetFolder(), "gemini_system_prompt.txt");
+    string context = "";
+    try { context = File.ReadAllText(promptFile); } catch { context = "You are a HomeGenie developer."; }
+
+    if (useDeepKnowledge) {
+        Program.Log.Info("Building Deep Knowledge Context...");
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine(context);
+        sb.AppendLine("\n=======================================================");
+        sb.AppendLine("HOMEGENIE SYSTEM SOURCE CODE (REFERENCE MATERIAL)");
+        sb.AppendLine("=======================================================\n");
+
+        // 1. Read programs.xml
+        try {
+            string hgRoot = Path.GetFullPath(Path.Combine(Data.GetFolder(), "..", ".."));
+            string programsFile = Path.Combine("./", "programs.xml");
+            if (File.Exists(programsFile)) {
+                sb.AppendLine("--- FILE: programs.xml (C# Backend Logic) ---");
+                sb.AppendLine(GetSlimmedXml(programsFile));
+                sb.AppendLine("---------------------------------------------\n");
+            }
+        } catch (Exception ex) { Program.Log.Warn("Could not read programs.xml: " + ex.Message); }
+
+        // 2. Read Widgets (HTML, CSS, JS)
+        try {
+            string programRoot = Path.GetFullPath(Path.Combine(Data.GetFolder(), "..", ".."));
+            // Adjust the path to where your widgets actually are (e.g. html/widgets)
+            string widgetsFolder = Path.Combine(programRoot, "widgets");
+
+            if (Directory.Exists(widgetsFolder)) {
+                var extensions = new[] { ".html", ".css", ".js" };
+                var files = Directory.GetFiles(widgetsFolder, "*.*", SearchOption.AllDirectories)
+                                     .Where(f =&gt; extensions.Contains(Path.GetExtension(f).ToLower()));
+
+                foreach (var file in files) {
+                    string relativePath = file.Replace(widgetsFolder, "").TrimStart(Path.DirectorySeparatorChar);
+                    sb.AppendLine($"--- FILE: {relativePath} ---");
+                    sb.AppendLine(File.ReadAllText(file));
+                    sb.AppendLine($"--- END FILE: {relativePath} ---\n");
+                }
+            }
+        } catch (Exception ex) { Program.Log.Warn("Could not read widgets: " + ex.Message); }
+
+        context = sb.ToString();
+    }
+    return context;
+};
+
+// --- FUNCTION: CREATE CACHE ---
+DateTime rateLimitResetTime = DateTime.MinValue;
+bool isQuotaExceeded = false;
+Func&lt;string, bool&gt; EnsureCache = (fullContext) =&gt; {
+    if (!useDeepKnowledge) return false;
+    if (!string.IsNullOrEmpty(currentCacheName) &amp;&amp; DateTime.UtcNow &lt; cacheExpiration) return true;
+
+    Program.Log.Info("Uploading context to Gemini Cache...");
+    var cacheUrl = $"https://generativelanguage.googleapis.com/v1beta/cachedContents?key={geminiApiKey}";
+
+    var cachePayload = new {
+        model = $"models/{geminiModelId}",
+        system_instruction = new { parts = new[] { new { text = fullContext } } },
+        ttl = "3600s"
+    };
+
+    try {
+        var data = Net.WebService(cacheUrl)
+            .AddHeader("Content-Type", "application/json")
+            .Post(JsonConvert.SerializeObject(cachePayload))
+            .GetData();
+
+        if (data != null &amp;&amp; data.name != null) {
+            currentCacheName = data.name.ToString();
+            cacheExpiration = DateTime.UtcNow.AddMinutes(55);
+            Program.Log.Info($"Cache created successfully: {currentCacheName}");
+            return true;
+        }
+    } catch (Exception ex) {
+        if (ex.Message.Contains("429")) {
+            Program.Log.Warn("Gemini Cache Quota exceeded (429). Using standard mode (no cache).");
+        } else {
+            Program.Log.Warn($"Caching failed: {ex.Message}");
+        }
+        currentCacheName = "";
+    }
+    return false;
+};
+
+// ===================================================================
+// API HANDLER: Process a new user message
+// ===================================================================
+Api.Handle($"{API_URL}/Prompt.Submit", (userCommand) =&gt;
+{
+    var request = Api.Parse(userCommand);
+    var msg = userCommand is string ? WebUtility.UrlDecode(userCommand as string) : request?.Data is string ? request?.Data as string : Encoding.Default.GetString(request?.Data as byte[]);
+
+    if (isQuotaExceeded &amp;&amp; DateTime.UtcNow &lt; rateLimitResetTime) {
+        return new ResponseText($"**AI Temporarily Unavailable:** Rate limit reached (Error 429). Please try again in {Math.Ceiling((rateLimitResetTime - DateTime.UtcNow).TotalMinutes)} minutes.");
+    }
+
+    var result = Api.Call("System.Utility/ChatHistory/Get", new { StoreId = storeId });
+    var payloadContents = JArray.FromObject(result).ToObject&lt;List&lt;ChatMessage&gt;&gt;();
+
+    var userMessage = ChatMessage.Create("user", msg);
+    Api.Call("System.Utility/ChatHistory/Add", new { StoreId = storeId, Message = userMessage });
+    payloadContents.Add(userMessage);
+
+    string fullContext = BuildContext();
+    bool hasCache = EnsureCache(fullContext);
+    if (isQuotaExceeded) {
+        return new ResponseText("**Quota Error:** Could not load the context. Please try again in a few minutes.");
+    }
+
+    // Build the Generation Config forcing JSON output
+    var genConfig = new {
+        temperature = 0.2,
+        response_mime_type = "application/json",
+        response_schema = new {
+            type = "object",
+            properties = new {
+                explanation = new { type = "string" },
+                solution_type = new { type = "string", @enum = new[] { "widget", "automation" } },
+                language = new { type = "string", @enum = new[] { "csharp", "javascript", "python" } },
+                widget = new {
+                    type = "object",
+                    properties = new {
+                        html = new { type = "string" },
+                        css = new { type = "string" },
+                        javascript = new { type = "string" }
+                    },
+                    required = new[] { "html", "css", "javascript" }
+                },
+                automation = new {
+                    type = "object",
+                    properties = new {
+                        setup = new { type = "string", description = "AddOption and Program.Run() only" },
+                        main = new { type = "string", description = "Core logic and listeners (MANDATORY)" },
+                        context = new { type = "string" }
+                    },
+                    required = new[] { "setup", "main" }
+                }
+            },
+            required = new[] { "explanation", "solution_type", "language" }
+        }
+    };
+
+    // Construct Payload dynamically based on cache status
+    object payload;
+    if (hasCache) {
+        payload = new {
+            contents = payloadContents,
+            cached_content = currentCacheName,
+            generationConfig = genConfig
+        };
+    } else {
+        payload = new {
+            contents = payloadContents,
+            system_instruction = new { parts = new[] { new { text = fullContext } } },
+            generationConfig = genConfig
+        };
+    }
+
+    try
+    {
+        string payloadJson = JsonConvert.SerializeObject(payload, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
+        string requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{geminiModelId}:generateContent?key={geminiApiKey}";
+
+        var data = Net.WebService(requestUrl).WithTimeout(180).AddHeader("Content-Type", "application/json").Post(payloadJson).GetData();
+        if (data != null &amp;&amp; data.candidates != null &amp;&amp; data.candidates.Count &gt; 0)
+        {
+            string rawResponse = data.candidates[0].content.parts[0].text;
+
+            if (!string.IsNullOrEmpty(rawResponse))
+            {
+                var jsonObj = JObject.Parse(rawResponse);
+                StringBuilder formattedResponse = new StringBuilder();
+
+                formattedResponse.AppendLine(jsonObj["explanation"]?.ToString());
+
+                string type = jsonObj["solution_type"]?.ToString();
+                string lang = jsonObj["language"]?.ToString() ?? "javascript";
+
+                if (type == "widget") {
+                    var w = jsonObj["widget"];
+                    if (w != null) {
+                        string html = w["html"]?.ToString() ?? "";
+                        string css = w["css"]?.ToString() ?? "";
+                        string js = w["javascript"]?.ToString() ?? "";
+
+                        // Fallback
+                        if (string.IsNullOrWhiteSpace(css)) {
+                            css = "@import 'assets/styles/widget-ui.css';\n@import 'assets/styles/flex-layout-attribute.min.css';";
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(html)) formattedResponse.AppendLine($"\n```html\n{html}\n```");
+                        formattedResponse.AppendLine($"\n```css\n{css}\n```"); // Lo mettiamo sempre
+                        if (!string.IsNullOrWhiteSpace(js)) formattedResponse.AppendLine($"\n```javascript\n{js}\n```");
+                    }
+                } else if (type == "automation") {
+                    var a = jsonObj["automation"];
+                    if (a != null) {
+                        // 1. Setup: UI Options and Initializations
+                        if (!string.IsNullOrWhiteSpace(a["setup"]?.ToString()))
+                            formattedResponse.AppendLine($"\n**Setup:**\n```{lang}\n{a["setup"]}\n```");
+
+                        // 2. Main: The core logic (Refactored from "source")
+                        if (!string.IsNullOrWhiteSpace(a["main"]?.ToString()))
+                            formattedResponse.AppendLine($"\n**Main:**\n```{lang}\n{a["main"]}\n```");
+
+                        // 3. Context: Optional, typically for C# classes/methods
+                        if (!string.IsNullOrWhiteSpace(a["context"]?.ToString()))
+                            formattedResponse.AppendLine($"\n**Context:**\n```{lang}\n{a["context"]}\n```");
+                    }
+                }
+
+                string finalReply = formattedResponse.ToString();
+
+                var modelResponse = ChatMessage.Create("model", finalReply);
+                Api.Call("System.Utility/ChatHistory/Add", new { StoreId = storeId, Message = modelResponse });
+
+                return new ResponseText(finalReply);
+            }
+        }
+        return new ResponseText("**Error:** The AI returned an empty response.");
+    }
+    catch (Exception ex)
+    {
+        if (ex.Message.Contains("(429)")) {
+            isQuotaExceeded = true;
+            rateLimitResetTime = DateTime.UtcNow.AddMinutes(2);
+            return new ResponseText("**Errore 429:** Troppe richieste in corso. Ho messo in pausa le interrogazioni per un paio di minuti.");
+        }
+        Program.Log.Error($"Gemini API Error: {ex.Message}");
+        return new ResponseText($"**Error:** Could not contact Gemini service. `{ex.Message}`");
+    }
+});
+
+// APIs for Chat History
+Api.Handle($"{API_URL}/{API_HISTORY_GET}", (p) =&gt; Api.Call("System.Utility/ChatHistory/Get", new { StoreId = storeId }));
+Api.Handle($"{API_URL}/{API_HISTORY_CLEAR}", (p) =&gt; Api.Call("System.Utility/ChatHistory/Clear", new { StoreId = storeId }));
+Api.Handle($"{API_URL}/{API_HISTORY_REMOVE_AT}", (i) =&gt; Api.Call("System.Utility/ChatHistory/RemoveAt", new { StoreId = storeId, Index = i }));
+Api.Handle($"{API_URL}/{API_HISTORY_EXPORT}", (p) =&gt; Api.Call("System.Utility/ChatHistory/Export", new { StoreId = storeId }));
+Api.Handle($"{API_URL}/{API_HISTORY_IMPORT}", (p) =&gt; Api.Call("System.Utility/ChatHistory/Import", new { StoreId = storeId, Data = (p as dynamic).Data }));
+
+while (Program.IsRunning &amp;&amp; !reconfigureRequired) { Pause(1); }
+</ScriptSource>
+    <ScriptContext>const string API_HISTORY_GET = "History.Get";
+const string API_HISTORY_CLEAR = "History.Clear";
+const string API_HISTORY_REMOVE_AT = "History.RemoveAt";
+const string API_HISTORY_EXPORT = "History.Export";
+const string API_HISTORY_IMPORT = "History.Import";
+
+public class MessagePart {
+    [JsonProperty("text")]
+    public string Text { get; set; }
+}
+
+public class ChatMessage {
+    [JsonProperty("role")]
+    public string Role { get; set; }
+    [JsonProperty("parts")]
+    public List&lt;MessagePart&gt; Parts { get; set; } = new List&lt;MessagePart&gt;();
+
+    public static ChatMessage Create(string role, string text) {
+        return new ChatMessage {
+            Role = role,
+            Parts = new List&lt;MessagePart&gt; { new MessagePart { Text = text } }
+        };
+    }
+}</ScriptContext>
+    <ScriptErrors>[]</ScriptErrors>
+    <Data />
+    <PackageInfo>
+      <Repository>homegenie</Repository>
+      <PackageId>homegenie-ml-ai</PackageId>
+      <PackageVersion>1.0.4</PackageVersion>
+      <Id>gemini-widget-genie</Id>
+      <Version>1.0.13</Version>
+      <Required>true</Required>
+      <Checksum>D5762297431812A848F81E3F31EE5CF8</Checksum>
+    </PackageInfo>
+    <Domain>HomeAutomation.HomeGenie.Automation</Domain>
+    <Address>931</Address>
+    <Name>Gemini Widget Genie</Name>
+    <Description>Your personal AI genie for widget creation. Powered by Gemini, it helps you write and debug HTML, CSS, and JavaScript code directly within the HomeGenie editor.
+To activate this feature, enter a valid API key.
+Follow the instructions at https://aistudio.google.com/app/apikey to get a free API key.</Description>
+    <Group>AI - Machine Learning</Group>
+    <Features />
+    <AutoRestartEnabled>false</AutoRestartEnabled>
+    <Cloneable>false</Cloneable>
+    <Type>csharp</Type>
+    <IsEnabled>true</IsEnabled>
+  </ProgramBlock>
+  <ProgramBlock>
+    <ScriptSetup>Program
+  .AddFeature(
+    "",
+    ForCameraInputType,
+    InstanceSegmentation,
+    "Enable instance segmentation",
+    "checkbox"
+  ).AddFeature(
+    "",
+    ForCameraInputType,
+    InstanceSegmentationTrigger,
+    "Comma-separated list of things (in English) that will trigger the alarm. (e.g.: cat, dog, person, backpack, suitcase)",
+    "text"
+  ).AddOption(
+    "Yolo.ModelPath",
+    Data.GetFolder() + "/yolo26n-seg.onnx",
+    "1. Path of YOLO model file (.onnx)",
+    "text"
+  ).AddOption(
+    YoloRequestsPerSecond,
+    "15",
+    "2. Max Requests Per Second (RPS)",
+    "slider:1:30:1"
+  );
+
+Program.Run();
+</ScriptSetup>
+    <ScriptSource>var inputModules = Modules.WithFeature(InstanceSegmentation);
+var requestsPerSecond = Program.Option(YoloRequestsPerSecond);
+
+// Show toggle icon for this algorithm in the NVR / Video widget
+Program
+    .Emit("NVR.Vision.Algorithm", InstanceSegmentation)     // feature to toggle "On" in order to enable this algo
+    .Emit("NVR.Vision.Algorithm.Icon", "pattern");          // material symbol icon for the toggle button
+
+// Restart program if configuration has been changed to apply new settings.
+When.ModuleParameterChanged( (module, property) =&gt; {
+    if (module.Instance == Program.Module &amp;&amp; property.Name.StartsWith("ConfigureOptions."))
+    {
+        if (Program.IsRunning) Program.Restart();
+        return true;
+    }
+    return true;
+});
+
+var yoloModelPath = Program.Option("Yolo.ModelPath")?.Value;
+if (String.IsNullOrEmpty(yoloModelPath))
+{
+    Program.Notify($"Configure the path of YOLO 'segment' model (.onnx file). {OptionButtons}");
+    Pause(5);
+    return;
+}
+
+var breathe = () =&gt; {
+    if (requestsPerSecond.DecimalValue &gt; 0)
+    {
+        Pause(1D / requestsPerSecond.DecimalValue);
+    }
+    else
+    {
+        Pause(0.2); // default is 5 RPS max
+    }
+};
+
+// For details about this implemention see
+// *ML.net* and *YoloSharp* documentation
+
+
+try
+{
+    var errorOccurred = false;
+    using var detectPredictor = new YoloPredictor(yoloModelPath);
+    while (Program.IsRunning)
+    {
+        if (inputModules.SelectedModules.Count == 0)
+        {
+            Pause(1);
+            continue;
+        }
+        inputModules.Each((module) =&gt; {
+            var data = module.Command("Camera.GetPicture").GetValue();
+            if (data == null || ((byte[])data).Length == 0)
+            {
+                // I/O errors might occasionally occur and can be ignored
+                return false;
+            }
+            try
+            {
+                var result = detectPredictor.Segment((byte[])data);
+                //Console.WriteLine($"Result: {result}");
+                //Console.WriteLine($"Speed:  {result.Speed}");
+                if (result.Count() &gt; 0)
+                {
+                    var output = new List&lt;SegmentResult&gt;();
+                    // Emit "Sensor.ObjectDetect.Subject.Data" event if anything
+                    // mathing the configured "TriggerDetect" list
+                    // was detected in the scene.
+                    string[] matchList = module
+                        .Parameter( InstanceSegmentationTrigger )?.Value
+                        .Split(',').Select(p =&gt; p.Trim())
+                        .Where(x =&gt; !string.IsNullOrEmpty(x))
+                        .ToArray();
+                    if (matchList.Length &gt; 0)
+                    {
+                        var filtered = new List&lt;Compunet.YoloSharp.Data.Segmentation&gt;();
+                        foreach (var r in result)
+                        {
+                            var subject = r.Name.Name;
+                            if (matchList.Contains(subject))
+                            {
+                                filtered.Add(r);
+                            }
+                        }
+                        if (filtered.Count &gt; 0)
+                        {
+                            if (module.Parameter(ObjectDetect).DecimalValue != filtered.Count)
+                            {
+                                module.Emit(ObjectDetect, filtered.Count);
+                            }
+                            else
+                            {
+                                // update value and timestamp only, do not emit event
+                                module.Parameter(ObjectDetect).SetData(filtered.Count);
+                            }
+                            foreach (var r in filtered)
+                            {
+                                output.Add(new SegmentResult(){
+                                    Result = r,
+                                    Mask = ExtractAndApproximateContour(r.Mask, 100)
+                                });
+                                module.Emit(ObjectDetectSubject, r);
+                            }
+                        }
+                        else if (module.Parameter(ObjectDetect).DecimalValue != 0 &amp;&amp; module.Parameter(ObjectDetect).IdleTime &gt; 5)
+                        {
+                            module.Emit(ObjectDetect, 0);
+                        }
+                    }
+                    else
+                    {
+                        foreach (var r in result)
+                        {
+                            output.Add(new SegmentResult(){
+                                Result = r,
+                                Mask = ExtractAndApproximateContour(r.Mask, 100)
+                            });
+                        }
+                    }
+
+                    if (output.Count &gt; 0)
+                    {
+                        // Emit json data for the video player (overlay data)
+                        var jsonResults = JsonConvert.SerializeObject(output);
+                        module.Emit(VideoPlayerWidgetOverlaySegment, jsonResults);
+                    }
+
+                }
+            }
+            catch (Exception e)
+            {
+                errorOccurred = true;
+                //Console.WriteLine(e.Message);
+            }
+            if (errorOccurred)
+            {
+                errorOccurred = false;
+                Pause(3);
+            }
+            else
+            {
+                breathe();
+            }
+            return false;
+        });
+        breathe();
+    }
+}
+catch (Exception e)
+{
+    Program.Notify($"Error: {e.Message} {OptionButtons}");
+    Pause(5);
+    return;
+}
+</ScriptSource>
+    <ScriptContext>#using Compunet.YoloSharp.Memory
+
+const string
+OptionButtons = "[program_configure,program_disable]",
+YoloModelPath = "Yolo.ModelPath",
+YoloRequestsPerSecond = "Yolo.RequestsPerSecond",
+ForCameraInputType = "VideoInput,Sensor:Widget.DisplayModule=/homegenie/generic/(videoinput|camerainput)/",
+InstanceSegmentation = "ML.InstanceSegmentation",
+InstanceSegmentationTrigger = $"{InstanceSegmentation}.TriggerDetect",
+ObjectDetect = "Sensor.ObjectDetect",
+ObjectDetectSubject = "Sensor.ObjectDetect.Subject",
+VideoPlayerWidgetOverlaySegment = "Widget.Data.VideoPlayer.Overlay.Segment";
+
+public class SegmentResult
+{
+    public Compunet.YoloSharp.Data.Segmentation Result;
+    public List&lt;MaskPoint&gt; Mask;
+}
+
+public class MaskPoint
+{
+    public float X;
+    public float Y;
+    public MaskPoint(float x, float y)
+    {
+        X = x;
+        Y = y;
+    }
+}
+
+public static List&lt;MaskPoint&gt; ExtractAndApproximateContour(BitmapBuffer r, int maxPoints = 25)
+{
+    var contour = ExtractContourPointsInternal(r);  // Get the initial contour
+
+    if (contour.Count &lt;= maxPoints)
+    {
+        return contour; // No need to approximate if already within the limit
+    }
+
+    // Implement a simple approximation by taking equally spaced points
+    var approximatedContour = new List&lt;MaskPoint&gt;();
+    double interval = (double)contour.Count / maxPoints;
+    for (int i = 0; i &lt; maxPoints - 1; i++)
+    {
+        int index = (int)Math.Round(i * interval); //Round for accuracy
+        approximatedContour.Add(contour[index]); // Add existing point at the index
+    }
+
+    //Ensure the loop has the final item; If the last isn't added, add it
+    if(approximatedContour.Last() != contour.Last()) {
+            approximatedContour.Add(contour.Last());
+    }
+
+    return approximatedContour;
+}
+
+
+private static List&lt;MaskPoint&gt; ExtractContourPointsInternal(BitmapBuffer r)
+{
+    int height = r.Height;
+    int width = r.Width;
+
+    // Helper function to check if a pixel is a border pixel
+    bool IsBorderPixel(BitmapBuffer mask, int x, int y)
+    {
+        if (x == 0 || x == width - 1 || y == 0 || y == height - 1)
+        {
+            return true;
+        }
+
+        return (mask[y, x - 1] &gt; 0.9 != mask[y, x] &gt; 0.9 ||
+                mask[y, x + 1] &gt; 0.9 != mask[y, x] &gt; 0.9 ||
+                mask[y - 1, x] &gt; 0.9 != mask[y, x] &gt; 0.9 ||
+                mask[y + 1, x] &gt; 0.9 != mask[y, x] &gt; 0.9);
+    }
+
+    // Find all contour pixels
+    var contourPixels = new List&lt;MaskPoint&gt;();
+    for (int y = 0; y &lt; height; y++)
+    {
+        for (int x = 0; x &lt; width; x++)
+        {
+            if (r[y, x] &gt; 0.9 &amp;&amp; IsBorderPixel(r, x, y))
+            {
+                contourPixels.Add(new MaskPoint(x, y));
+            }
+        }
+    }
+
+    if (contourPixels.Count == 0)
+    {
+        return new List&lt;MaskPoint&gt;(); // Return empty list if no shape found
+    }
+
+    // Order the contour pixels (nearest neighbor approach)
+    var contour = new List&lt;MaskPoint&gt;();
+    var startPixel = contourPixels[0];
+    contour.Add(startPixel);
+    contourPixels.Remove(startPixel);
+
+    var currentPixel = startPixel;
+
+    while (contourPixels.Count &gt; 0)
+    {
+        var nearestNeighbor = contourPixels
+            .OrderBy(p =&gt; Math.Sqrt(Math.Pow(p.X - currentPixel.X, 2) + Math.Pow(p.Y - currentPixel.Y, 2))) // Euclidean distance
+            .FirstOrDefault();
+
+        if (nearestNeighbor == null)  // No more neighbors found
+        {
+            break;
+        }
+
+        contour.Add(nearestNeighbor);
+        contourPixels.Remove(nearestNeighbor);
+        currentPixel = nearestNeighbor;
+    }
+
+    return contour;
+}
+</ScriptContext>
+    <ScriptErrors />
+    <Data />
+    <PackageInfo>
+      <Repository>homegenie</Repository>
+      <PackageId>homegenie-ml-ai</PackageId>
+      <PackageVersion>1.0.4</PackageVersion>
+      <Id>instance-segmentation</Id>
+      <Version>1.0.4</Version>
+      <Required>true</Required>
+      <Checksum>3528F3E52DBF04D625ADB9BCA5DDE645</Checksum>
+    </PackageInfo>
+    <Domain>HomeAutomation.HomeGenie.Automation</Domain>
+    <Address>912</Address>
+    <Name>Instance Segmentation</Name>
+    <Description>Detect objects and their contour mask using a pre-trained YOLO model.
+</Description>
+    <Group>AI - Machine Learning</Group>
+    <Features>
+      <ProgramFeature>
+        <FieldType>checkbox</FieldType>
+        <ForDomains />
+        <ForTypes>VideoInput,Sensor:Widget.DisplayModule=/homegenie/generic/(videoinput|camerainput)/</ForTypes>
+        <Property>ML.InstanceSegmentation</Property>
+        <Description>Enable instance segmentation</Description>
+      </ProgramFeature>
+      <ProgramFeature>
+        <FieldType>text</FieldType>
+        <ForDomains />
+        <ForTypes>VideoInput,Sensor:Widget.DisplayModule=/homegenie/generic/(videoinput|camerainput)/</ForTypes>
+        <Property>ML.InstanceSegmentation.TriggerDetect</Property>
+        <Description>Comma-separated list of things (in English) that will trigger the alarm. (e.g.: cat, dog, person, backpack, suitcase)</Description>
+      </ProgramFeature>
+    </Features>
+    <AutoRestartEnabled>false</AutoRestartEnabled>
+    <Cloneable>false</Cloneable>
+    <Type>csharp</Type>
+    <IsEnabled>true</IsEnabled>
+  </ProgramBlock>
+  <ProgramBlock>
+    <ScriptSetup>// ===================================================================
+// SETUP BLOCK - PROGRAM INITIALIZATION
+// ===================================================================
+// This block is executed once when the program is enabled.
+// It is responsible for:
+// 1. Loading the available models for the UI selection.
+// 2. Registering the program as a system-wide AI Intent Handler.
+// 3. Defining user-configurable options (tokens, model, prompt).
+// 4. Linking the specific front-end chat widget.
+// ===================================================================
+
+// --- 1. PRE-SETUP CONFIGURATION DATA ---
+
+// Load available GGUF models from models.yaml to populate the dropdown
+var modelsList = LoadModelList(Path.Combine(Data.GetFolder(), CONFIG_FILE_NAME));
+var models = string.Join(",", modelsList.Select(item =&gt; $"{item.Value.Name}={item.Key}"));
+
+// Path to the external markdown file for system instructions
+var systemPromptFile = Path.Combine(Data.GetFolder(), "system_prompt.txt");
+var modelsFile = Path.Combine(Data.GetFolder(), CONFIG_FILE_NAME);
+
+
+// --- 2. PROGRAM SETUP DELEGATE ---
+
+Program.Setup(() =&gt; {
+
+  Program
+    // Implement the AI Intent Handler interface to allow system integration
+    .Implements(
+      "@AI:IntentHandler",
+      API_URL
+    )
+
+    // UI Options Definition:
+    // - Response length limit (Max Tokens)
+    // - Model selection dropdown (populated from models.yaml)
+    // - System Instructions (Markdown editor linked to system_prompt.txt)
+    .AddOption(OPTION_MODEL_FILE, "", "0. AI Model", $"select:{ models }")
+    .AddOption(OPTION_SEND_CONTEXT_DATA, "On", "1. Share system and module context with the AI", "checkbox")
+    .AddOption(OPTION_MODEL_TEMPERATURE, "0.4", "2. Creativity (0.0 = Precise, 2.0 = Creative)", "slider:0.0:2.0:0.05")
+    .AddOption(OPTION_CONTEXT_SIZE, "2048", "3. AI Memory Capacity (Context Window)", "slider:1024:32768:1024")
+    .AddOption(OPTION_MAX_TOKENS, "1536", "4. Response Length (Max Tokens)", "slider:64:4096:32")
+    .AddOption(OPTION_MAX_TURNS, "10", "5. Chat Memory (Max Turns) (0 = no limit)", "slider:0:20:1")
+    .AddOption(OPTION_SYSTEM_INSTRUCTIONS, "", "6. System Prompt (Instructions)", $"editor:file:{systemPromptFile}:markdown")
+    .AddOption(OPTION_MODEL_LIST, "", "7. AI Model List", $"editor:file:{modelsFile}:yaml")
+
+    // Assign the custom UI widget for the chat interface
+    .UseWidget("custom/examples/local-ai-chat")
+    .Emit("@AI:IntentHandler", API_URL); // notify widgets
+
+});
+
+
+// --- 3. EXECUTION ---
+
+// Trigger the transition to the MAIN block
+Program.Run();
+</ScriptSetup>
+    <ScriptSource>// ===================================================================
+// LOCAL LLM AUTOMATION PROGRAM (LLamaSharp Edition)
+// ===================================================================
+// This block manages the integration of a Local Language Model (GGUF)
+// for home automation control within HomeGenie.
+//
+// Main Responsibilities:
+// 1. Model download management via System DownloadManager.
+// 2. LLamaSharp engine initialization (VRAM/RAM management).
+// 3. Dynamic device inventory generation for the System Prompt.
+// 4. Token streaming with smart buffering and artifact filtering.
+// 5. Automatic execution of API commands extracted from AI responses.
+// ===================================================================
+
+// --- 1. CONFIGURATION AND STATE INITIALIZATION ---
+
+var reconfigureRequired = false;
+int maxMessages = (int)Program.Option(OPTION_MAX_TURNS).DecimalValue * 2;
+var modelsFile = Path.Combine(Data.GetFolder(), CONFIG_FILE_NAME);
+
+// Load model configurations and file paths
+var modelsList = LoadModelList(modelsFile);
+var selectedModel = Program.Option(OPTION_MODEL_FILE).Value;
+string localModelFile = Path.Combine(Data.GetFolder(), selectedModel);
+
+
+
+// Register event handler to trigger a restart if configuration options change.
+When.ModuleParameterChanged((module, parameter) =&gt; {
+  if (module.Instance == Program.Module &amp;&amp; parameter.Name.StartsWith("ConfigureOptions.")) {
+    if (parameter.Name.EndsWith($".{OPTION_MODEL_LIST}"))
+    {
+      // Update model list option in the UI
+      modelsList = LoadModelList(modelsFile);
+      var models = string.Join(",", modelsList.Select(item =&gt; $"{item.Value.Name}={item.Key}"));
+      models = $"select:{ models }";
+      // IMPORTANT: update only if changed to prevent loop Emit &lt;-&gt; ModuleParameterChanged
+      if (parameter.Value != models)
+      {
+        Program.Option(OPTION_MODEL_FILE).FieldType = models;
+      }
+    }
+    else
+    {
+      reconfigureRequired = true;
+    }
+  }
+  return true;
+});
+
+
+
+// Reset UI status fields
+Program
+  .Emit("LLM.Id", "")
+  .Emit("Status.System.RamGb", GetTotalMemoryGB())
+  .Emit(FIELD_STATUS_INIT, "NotConfigured");
+
+
+// --- 2. API: DOWNLOAD MANAGEMENT ---
+// These endpoints bridge the UI with the system's DownloadManager utility.
+
+Api.Handle($"{Program.Module.Domain}/{Program.Module.Address}/DownloadStart", (p) =&gt; {
+     var model = modelsList[selectedModel];
+     Program.Emit(FIELD_STATUS_INIT, "Download").Emit(FIELD_DOWNLOAD, "Requested");
+     var item = JsonConvert.SerializeObject(new {
+         Name = model.Name,
+         Url = model.Url,
+         Path = Data.GetFolder()
+     });
+     Api.Call("System.Utility/DownloadManager/Enqueue", item);
+     return new ResponseStatus(Status.Ok);
+
+}).Handle($"{Program.Module.Domain}/{Program.Module.Address}/DownloadCancel", (p) =&gt; {
+     Program.Emit(FIELD_DOWNLOAD, "Pending");
+     var item = JsonConvert.SerializeObject(new { Id = Program.Parameter(FIELD_DOWNLOAD_ID)?.Value });
+     Api.Call("System.Utility/DownloadManager/Delete", item);
+     Program
+      .Emit(FIELD_DOWNLOAD_ID, "")
+      .Emit(Program.Option(OPTION_MODEL_FILE).Name, "");
+     return new ResponseStatus(Status.Ok);
+
+}).Handle($"{Program.Module.Domain}/{Program.Module.Address}/DownloadPause", (p) =&gt; {
+    Program.Emit(FIELD_DOWNLOAD, "Paused");
+    var item = JsonConvert.SerializeObject(new { Id = Program.Parameter(FIELD_DOWNLOAD_ID)?.Value });
+    Api.Call("System.Utility/DownloadManager/Pause", item);
+    return new ResponseStatus(Status.Ok);
+
+}).Handle($"{Program.Module.Domain}/{Program.Module.Address}/DownloadResume", (p) =&gt; {
+    var item = JsonConvert.SerializeObject(new { Id = Program.Parameter(FIELD_DOWNLOAD_ID)?.Value });
+    Api.Call("System.Utility/DownloadManager/Resume", item);
+    return new ResponseStatus(Status.Ok);
+});
+
+
+// --- 2.1 INFERENCE POST-PROCESSING HELPER METHOD (shared for using by other programs)
+Api.Handle($"{Program.Module.Domain}/{Program.Module.Address}/Extract", (modelResponse) =&gt; {
+    // Post-Process AI reply and execute local commands
+    var request = Api.Parse(modelResponse);
+    var response = WebUtility.UrlDecode(request.OriginalRequest);
+    return ExtractAndExecute(Api, response);
+});
+
+
+// --- 3. MODEL FILE VERIFICATION &amp; MONITORING LOOP ---
+
+if (!File.Exists(localModelFile)) {
+  // Model file missing: enter monitoring loop until download is finished.
+  while (!File.Exists(localModelFile))
+  {
+    dynamic response = Api.Call("System.Utility/DownloadManager/GetStatus", localModelFile);
+    dynamic fileStatus = JsonConvert.DeserializeObject&lt;dynamic&gt;(response);
+
+    if ((bool)fileStatus?.Success)
+    {
+      var task = fileStatus?.Data;
+      if (task != null)
+      {
+        // Update UI with real-time download progress
+        Program
+          .Emit(FIELD_DOWNLOAD, task.Status.ToString())
+          .Emit(FIELD_DOWNLOAD_ID, task.Id.ToString())
+          .Emit(FIELD_DOWNLOAD_TASK, task.DestinationFilePath.ToString())
+          .Emit(FIELD_DOWNLOAD_ERROR, task.ErrorMessage.ToString())
+          .Emit(FIELD_DOWNLOAD_PROGRESS, task.ProgressPercentage.ToString("F2", CultureInfo.InvariantCulture));
+
+        if (task.ProgressPercentage &gt;= 100) break;
+      }
+      else if (Program.Parameter(FIELD_DOWNLOAD_TASK)?.Value != localModelFile)
+      {
+        // No active task found for this file
+        Program
+          .Emit(FIELD_DOWNLOAD, "Pending")
+          .Emit(FIELD_DOWNLOAD_ID, String.IsNullOrEmpty(selectedModel) ? "Pending" : "")
+          .Emit(FIELD_DOWNLOAD_TASK, localModelFile)
+          .Emit(FIELD_DOWNLOAD_PROGRESS, "0");
+          if (modelsList.ContainsKey(selectedModel))
+          {
+            Program.Emit(FIELD_DOWNLOAD_REPOSITORY, modelsList[selectedModel].Repository);
+          }
+          else
+          {
+            Program.Emit(FIELD_DOWNLOAD_REPOSITORY, "");
+          }
+      }
+    }
+
+    if (reconfigureRequired) return;
+    Pause(2); // Poll status every 2 seconds
+  }
+
+  Program
+    .Emit(FIELD_STATUS_ERROR, "")
+    .Emit(FIELD_DOWNLOAD, "Complete")
+    .Emit(FIELD_DOWNLOAD_PROGRESS, "100");
+
+  return; // Program will restart to initialize the engine with the new file
+}
+else if (Program.Parameter(FIELD_DOWNLOAD_TASK)?.Value != localModelFile)
+{
+  // File already exists; ensure UI state is consistent
+  Program
+    .Emit(FIELD_DOWNLOAD, "Complete")
+    .Emit(FIELD_DOWNLOAD_ID, "")
+    .Emit(FIELD_DOWNLOAD_PROGRESS, "100")
+    .Emit(FIELD_DOWNLOAD_TASK, localModelFile);
+}
+
+
+// --- 4. LLM ENGINE INITIALIZATION (LLamaSharp) ---
+
+Program
+  .Emit("LLM.Id", selectedModel)
+  .Emit(FIELD_STATUS_ERROR, "")
+  .Emit(FIELD_STATUS_INIT, $"Starting");
+
+var templateType = "";
+var modelPath = localModelFile;
+
+if (modelsList.ContainsKey(selectedModel)) {
+  templateType = modelsList[selectedModel].Template;
+} else {
+  // ERROR: selected model not listed
+  modelPath = "";
+  Program
+    .Emit(FIELD_DOWNLOAD_ID, "")
+    .Emit(Program.Option(OPTION_MODEL_FILE).Name, "");
+}
+
+LLamaWeights model = null;
+LLamaContext context = null;
+ChatSession session = null;
+CancellationTokenSource generationCts = null;
+
+// Cleanup action to release unmanaged resources (VRAM/RAM)
+var dispose = new Action(() =&gt; {
+  session = null;
+  if (context != null) { context.Dispose(); context = null; }
+  if (model != null) { model.Dispose(); model = null; }
+  GC.Collect();
+  GC.WaitForPendingFinalizers();
+});
+
+// Basic path validation
+if (String.IsNullOrEmpty(modelPath))
+{
+  Program.Notify($"LLM model path not configured.[program_configure]").Emit(FIELD_STATUS_ERROR, "LLM model path not configured.");
+}
+else if (!File.Exists(modelPath))
+{
+  Program.Notify($"File not found: {modelPath}.[program_configure]").Emit(FIELD_STATUS_ERROR, $"File not found: {modelPath}");
+}
+else
+{
+  // Ensure cleanup on stop
+  When.ProgramStopping(() =&gt; { dispose(); return true; });
+
+  try {
+    // Load Inference Parameters
+    LailamaInferenceParams.MaxTokens = (int)Program.Option(OPTION_MAX_TOKENS).DecimalValue;
+    uint contextSize = (uint)Program.Option(OPTION_CONTEXT_SIZE).DecimalValue;
+
+    var parameters = GetOptimizedParams(modelPath);
+
+    // Load Model Weights and Context
+    model = LLamaWeights.LoadFromFile(parameters);
+    context = model.CreateContext(parameters);
+
+    var executor = new InteractiveExecutor(context);
+    var chatHistory = new ChatHistory();
+
+    // --- 5. SYSTEM PROMPT CONFIGURATION AND CHAT SESSION INIT ---
+    var promptText = "";
+    try { promptText = File.ReadAllText(Path.Combine(Data.GetFolder(), "system_prompt.txt")); } catch (Exception e) { }
+
+    var systemPrompt = (string)Api.Call("System.Utility/ContextEngine/Render", promptText);
+
+    // Clean initialization
+    var systemMessage = new ChatHistory.Message(AuthorRole.System, (string)systemPrompt);
+    chatHistory.Messages.Add(systemMessage);
+
+
+    // SYNC: Fetch clean history from the System Service and sync LLamaSharp session
+    string storeId = Program.Module.Address;
+    try {
+        var result = Api.Call("System.Utility/ChatHistory/Get", new { StoreId = storeId });
+        dynamic unifiedlHistory = JArray.FromObject(result).ToObject&lt;List&lt;ChatMessage&gt;&gt;();
+
+        if (unifiedlHistory != null) {
+
+            // Re-populate with clean messages from service
+            foreach(ChatMessage msg in unifiedlHistory) {
+                var role = msg.Role == "user" ? AuthorRole.User : AuthorRole.Assistant;
+
+                // --- FIX: Uso di un ciclo classico invece di LINQ .Select() ---
+                var partsTextList = new List&lt;string&gt;();
+                foreach (var part in msg.Parts) {
+                    partsTextList.Add(part.Text);
+                }
+                string combinedText = string.Join("\n", partsTextList);
+                chatHistory.Messages.Add(new ChatHistory.Message(role, combinedText));
+            }
+        }
+    } catch (Exception ex) {
+        Program.Log.Error("Sync error: " + ex.Message);
+    }
+
+
+    // Final session starts with the System Prompt already in history
+    session = new ChatSession(executor, chatHistory);
+
+    var resetState = session.GetSessionState();
+    session.LoadSession(resetState);
+
+    // --- 6. WARMUP PHASE ---
+    // Perform a dummy inference to pre-populate the KV cache and avoid latency on first use.
+    Program.Emit(FIELD_STATUS_INIT, "WarmingUp");
+    try {
+        var warmupParams = new InferenceParams() { MaxTokens = 1 };
+        Task.Run(async () =&gt; {
+            await foreach (var token in session.ChatAsync(new ChatHistory.Message(AuthorRole.User, " "), warmupParams)) { }
+        }).GetAwaiter().GetResult();
+    } catch (Exception ex) {
+        Program.Log.Warn($"Warmup warning: {ex.Message}");
+    }
+    Program.Emit(FIELD_STATUS_INIT, "Ready");
+
+
+    // --- 7. INFERENCE LOGIC AND TOKEN PROCESSING ---
+    /**
+      * Processes the user input, handles LLM inference, manages the token stream,
+      * and synchronizes with the centralized Chat History Service.
+      *
+      * @param rawInput The clean text entered by the user.
+      * @param synchronous Whether to wait for the full response before returning.
+      * @return The full generated response (if synchronous), otherwise an empty string.
+      */
+    var processInput = new Func&lt;string, bool, bool, bool, string&gt;((rawInput, synchronous, sendContextData, noHistory) =&gt; {
+
+        if (generationCts != null) generationCts.Dispose();
+        generationCts = new CancellationTokenSource();
+
+        string fullInput = rawInput;
+        if (sendContextData)
+        {
+          string systemInfo = (string)Api.Call("System.Utility/ContextEngine/Render", "%%SYSTEM_STATUS%%");
+          fullInput = systemInfo + "\n\n" + rawInput;
+        }
+
+
+        // 2. PERSIST USER MESSAGE: Save the CLEAN raw input to the service
+        if (!noHistory)
+        {
+          Api.Call("System.Utility/ChatHistory/Add", new {
+              StoreId = storeId,
+              Message = ChatMessage.Create("user", rawInput)
+          });
+        }
+
+        // 3. TEMPLATING: Prepare input for the engine (but don't save this to history!)
+        string templatedInput = BuildUserPrompt(templateType, fullInput);
+
+        var process = new Func&lt;bool, string&gt;((sync) =&gt; {
+            // Send the templated input to the engine
+            var sessionChat = session.ChatAsync(
+                new ChatHistory.Message(AuthorRole.User, templatedInput),
+                LailamaInferenceParams,
+                cancellationToken: generationCts.Token
+            );
+
+            string streamBuffer = "";
+            string fullReply = "";
+            var technicalTags = LailamaInferenceParams.AntiPrompts.Where(x =&gt; x.StartsWith("&lt;")).ToArray();
+            var textStops = LailamaInferenceParams.AntiPrompts.Where(x =&gt; !x.StartsWith("&lt;")).ToArray();
+            string[] visualArtifacts = { "/assistant/avatar", "/avatar", "![avatar]", "![image]" };
+
+            ProcessAsync(sessionChat, (token) =&gt; {
+                if (string.IsNullOrEmpty(token)) return;
+                streamBuffer += token;
+                fullReply += token;
+
+                foreach (var art in visualArtifacts) if (streamBuffer.Contains(art)) streamBuffer = streamBuffer.Replace(art, "");
+                foreach (var tag in technicalTags) if (streamBuffer.Contains(tag)) streamBuffer = streamBuffer.Replace(tag, "");
+                foreach (var stop in textStops) {
+                    if (streamBuffer.EndsWith(stop)) { streamBuffer = ""; return; }
+                }
+
+                bool isPotentialDanger = false;
+                foreach (var stop in textStops) if (stop.StartsWith(streamBuffer)) { isPotentialDanger = true; break; }
+
+                if (!isPotentialDanger || streamBuffer.Length &gt; 25) {
+                    Program.Emit(FIELD_TOKENS_STREAM, streamBuffer);
+                    streamBuffer = "";
+                }
+            }).GetAwaiter().GetResult();
+
+            if (!string.IsNullOrEmpty(streamBuffer)) {
+                foreach (var tag in technicalTags) streamBuffer = streamBuffer.Replace(tag, "");
+                if (!string.IsNullOrWhiteSpace(streamBuffer)) Program.Emit(FIELD_TOKENS_STREAM, streamBuffer);
+            }
+            Program.Emit(FIELD_TOKENS_STREAM, "");
+
+            // 4. COMMAND EXECUTION AND PERSISTENCE
+            var messageSegments = ExtractAndExecute(Api, fullReply);
+
+            var modelResponse = new ChatMessage {
+                Role = "model",
+                Parts = messageSegments.Select(s =&gt; new MessagePart { Text = s }).ToList()
+            };
+
+            if (!noHistory)
+            {
+              Api.Call("System.Utility/ChatHistory/Add", new {
+                  StoreId = storeId,
+                  Message = modelResponse
+              });
+            }
+
+            if (sendContextData)
+            {
+              // Replace content with the clean text (without systemInfo)
+              var lastUserMsg = session.History.Messages.LastOrDefault(m =&gt; m.AuthorRole == AuthorRole.User);
+              if (lastUserMsg != null)
+              {
+                  lastUserMsg.Content = rawInput;
+              }
+            }
+
+            // Check chat history (excluding the System Message at index 0)
+            // If history size exceeds the limit (System + max allowed messages), start pruning.
+            /*
+            while (maxMessages &gt; 0 &amp;&amp; session.History.Messages.Count &gt; maxMessages + 1)
+            {
+                // Remove the oldest message immediately following the System Message.
+                // Index 1 represents the earliest User or Assistant message in the conversation.
+                session.History.Messages.RemoveAt(1);
+            }
+            */
+            if (session.History.Messages.Count &gt; maxMessages)
+            {
+              session.LoadSession(resetState);
+              session.History.Messages.Clear();
+              //context.NativeHandle.MemoryClear(data: true);
+              systemPrompt = (string)Api.Call("System.Utility/ContextEngine/Render", promptText);
+              systemMessage = new ChatHistory.Message(AuthorRole.System, (string)systemPrompt);
+              session.History.Messages.Add(systemMessage);
+            }
+
+            return fullReply;
+        });
+
+        if (synchronous) return process(true);
+
+        Task.Run(() =&gt; {
+            try { process(false); }
+            catch (OperationCanceledException) { Program.Log.Info("Inference stopped."); }
+            catch (Exception ex) { Program.Emit(FIELD_STATUS_ERROR, ex.Message); }
+            finally { generationCts?.Dispose(); generationCts = null; }
+        });
+
+        return "";
+    });
+
+
+    // --- 8. API ENDPOINTS: INFERENCE AND CHAT ---
+
+    Api.Handle($"{API_URL}/{API_PROMPT_SUBMIT}", (userInput) =&gt; {
+        var request = Api.Parse(userInput);
+        // Direct intent submission (e.g. from external modules or scripts)
+        var input = userInput is string ? WebUtility.UrlDecode(userInput as string) : request?.Data is string ? request?.Data as string : Encoding.Default.GetString(request?.Data as byte[]);
+        if (!String.IsNullOrWhiteSpace(input))
+        {
+            bool sendContextData = (Program.Option(OPTION_SEND_CONTEXT_DATA).Value == "On");
+            processInput(input, false, sendContextData, false);
+        }
+        return new ResponseStatus(Status.Ok, "Processing: " + input);
+
+    }).Handle($"{API_URL}/{API_PROMPT_SCHEDULE}", (command) =&gt; {
+        var request = Api.Parse(command);
+        // Direct intent submission (e.g. from external modules or scripts)
+        var input = command is string ? WebUtility.UrlDecode(command as string) : request?.Data is string ? request?.Data as string : Encoding.Default.GetString(request?.Data as byte[]);
+        if (!String.IsNullOrWhiteSpace(input))
+        {
+          return new ResponseStatus(Status.Ok, processInput(input, true, false, true));
+        }
+        return new ResponseStatus(Status.Error, "No input");
+
+    }).Handle($"{API_URL}/{API_PROMPT_CANCEL}", (userCommand) =&gt; {
+        // Abort current generation
+        if (generationCts != null) {
+            generationCts.Cancel();
+            Program.Emit(FIELD_TOKENS_STREAM, "\n\n[STOPPED]");
+        }
+        return new ResponseStatus(Status.Ok);
+
+    }).Handle($"{API_URL}/{API_HISTORY_GET}", (userCommand) =&gt; {
+
+      return Api.Call("System.Utility/ChatHistory/Get", new {
+          StoreId = Program.Module.Address
+      });
+
+    }).Handle($"{API_URL}/{API_HISTORY_CLEAR}", (userCommand) =&gt; {
+
+      var storeId = Program.Module.Address;
+      Api.Call("System.Utility/ChatHistory/Clear", new { StoreId = storeId });
+      if (session != null &amp;&amp; resetState != null)
+      {
+          session.LoadSession(resetState);
+          if (session.History.Messages.Count &gt; 0)
+          {
+              session.History.Messages.Clear();
+              //context.NativeHandle.MemoryClear(data: true);
+              systemPrompt = (string)Api.Call("System.Utility/ContextEngine/Render", promptText);
+              systemMessage = new ChatHistory.Message(AuthorRole.System, (string)systemPrompt);
+              session.History.Messages.Add(systemMessage);
+          }
+      }
+      Program.Log.Info($"[Module {storeId}] Cleared: Engine and Service are now empty.");
+      return new ResponseStatus(Status.Ok);
+
+    });
+
+    Api.Handle($"{API_URL}/{API_HISTORY_REMOVE_AT}", (i) =&gt; Api.Call("System.Utility/ChatHistory/RemoveAt", new { StoreId = storeId, Index = i }));
+    Api.Handle($"{API_URL}/{API_HISTORY_EXPORT}", (p) =&gt; Api.Call("System.Utility/ChatHistory/Export", new { StoreId = storeId }));
+    Api.Handle($"{API_URL}/{API_HISTORY_IMPORT}", (p) =&gt; Api.Call("System.Utility/ChatHistory/Import", new { StoreId = storeId, Data = (p as dynamic).Data }));
+
+    Program.Emit(FIELD_STATUS_ERROR, "");
+
+  } catch (Exception e) {
+
+    Program.Notify($"ERROR: {e.Message} [program_configure]").Emit(FIELD_STATUS_ERROR, e.Message);
+    Pause(5);
+
+  }
+}
+
+Program.Emit(FIELD_TOKENS_STREAM, "");
+
+// --- 9. KEEP-ALIVE AND LIFECYCLE MONITORING ---
+
+while (Program.IsRunning)
+{
+    if (reconfigureRequired)
+    {
+        dispose();
+        return; // Exiting this loop triggers HomeGenie to reload the program block
+    }
+    Pause(1);
+}
+</ScriptSource>
+    <ScriptContext>#using System.Text.RegularExpressions
+
+// ===================================================================
+// CONFIGURATION AND CONSTANTS
+// ===================================================================
+
+/* Internal API Routing */
+const string API_URL = "AI.IntentHandlers/Lailama";
+const string API_PROMPT_SUBMIT = "Prompt.Submit";
+const string API_PROMPT_SCHEDULE = "Prompt.Schedule";
+const string API_PROMPT_CANCEL = "Prompt.Cancel";
+const string API_HISTORY_GET = "History.Get";
+const string API_HISTORY_CLEAR = "History.Clear";
+const string API_HISTORY_REMOVE_AT = "History.RemoveAt";
+const string API_HISTORY_EXPORT = "History.Export";
+const string API_HISTORY_IMPORT = "History.Import";
+
+/* Module Option Keys */
+const string OPTION_SEND_CONTEXT_DATA = "SendContextData";
+const string OPTION_CONTEXT_SIZE = "ContextSize";
+const string OPTION_MAX_TOKENS = "MaxTokens";
+const string OPTION_MAX_TURNS = "MaxTurns";
+const string OPTION_MODEL_FILE = "ModelFile";
+const string OPTION_MODEL_LIST = "ModelList";
+const string OPTION_MODEL_TEMPERATURE = "ModelTemperature";
+const string OPTION_SYSTEM_INSTRUCTIONS = "SystemInstructions";
+
+/* UI and Status Field Names */
+const string FIELD_TOKENS_STREAM = "LLM.TokenStream";
+const string FIELD_STATUS_INIT = "Status.Init";
+const string FIELD_STATUS_ERROR = "Status.Error";
+const string FIELD_DOWNLOAD = "Status.Download";
+const string FIELD_DOWNLOAD_ID = "Status.Download.Id";
+const string FIELD_DOWNLOAD_TASK = "Status.Download.Task";
+const string FIELD_DOWNLOAD_REPOSITORY = "Status.Download.Repository";
+const string FIELD_DOWNLOAD_ERROR = "Status.Download.Error";
+const string FIELD_DOWNLOAD_PROGRESS = "Status.Download.Progress";
+
+/* Resource Settings */
+const string CONFIG_FILE_NAME = "models.yaml";
+
+// ===================================================================
+// DATA MODELS AND CONFIGURATION LOADING
+// ===================================================================
+
+public class ModelInfo {
+  public string Url = "";
+  public string Name = "";
+  public string Repository = "";
+  public string Description = "";
+  public string Size = "";
+  public string Template = "";
+}
+
+/**
+ * Loads the list of available models from a YAML configuration file.
+ */
+public static Dictionary&lt;string, ModelInfo&gt; LoadModelList(string configFilePath = CONFIG_FILE_NAME)
+{
+    string fullPath = configFilePath;
+    try
+    {
+        string yaml = File.ReadAllText(fullPath);
+        var deserializer = new DeserializerBuilder().Build();
+        return deserializer.Deserialize&lt;Dictionary&lt;string, ModelInfo&gt;&gt;(yaml);
+    }
+    catch (Exception ex)
+    {
+        // Return empty dictionary if file is missing or corrupt
+        return new Dictionary&lt;string, ModelInfo&gt;();
+    }
+}
+
+public class MessagePart {
+    [JsonProperty("text")]
+    public string Text { get; set; }
+}
+public class ChatMessage {
+    [JsonProperty("role")]
+    public string Role { get; set; }
+    [JsonProperty("parts")]
+    public List&lt;MessagePart&gt; Parts { get; set; } = new List&lt;MessagePart&gt;();
+    public static ChatMessage Create(string role, string text) {
+        return new ChatMessage { Role = role, Parts = new List&lt;MessagePart&gt; { new MessagePart { Text = text } } };
+    }
+}
+
+// ===================================================================
+// INFERENCE PARAMETERS (Sampling &amp; Stop Sequences)
+// ===================================================================
+
+InferenceParams LailamaInferenceParams = new InferenceParams
+{
+    SamplingPipeline = new DefaultSamplingPipeline
+    {
+        Temperature = 0.4f, // Lower temperature for more deterministic/factual responses
+        TopP = 0.95f,
+        RepeatPenalty = 1.2f
+    },
+    MaxTokens = 1024,
+
+    // ANTI-PROMPTS (Stop Sequences)
+    // This list prevents the model from "hallucinating" both sides of the conversation
+    // or continuing indefinitely after providing the answer.
+    AntiPrompts = new string[]
+    {
+        // --- GROUP 1: OFFICIAL EOS (End Of Sentence) TOKENS ---
+        // Internal markers specific to each model architecture.
+        "&lt;|im_end|&gt;",           // ChatML (Qwen, Phi-3, Yi)
+        "&lt;|endoftext|&gt;",        // GPT-based standards
+        "&lt;|eot_id|&gt;",           // Llama 3
+        "&lt;|eom_id|&gt;",           // Llama 3 (End of Message)
+        "&lt;|end|&gt;",              // Phi-3
+        "&lt;end_of_turn&gt;",        // Gemma 2
+        "&lt;|end_of_sentence|&gt;",  // DeepSeek
+        "&lt;|end_of_response|&gt;",  // DeepSeek R1 / Reasoning models
+
+        // --- GROUP 2: TURN-START MARKERS ---
+        // Used to catch the model if it tries to generate the next User/System turn.
+        "&lt;|im_start|&gt;",         // ChatML
+        "&lt;|start_header_id|&gt;",  // Llama 3
+        "&lt;|user|&gt;",             // Phi-3
+        "&lt;start_of_turn&gt;",      // Gemma
+        "&lt;|begin_of_sentence|&gt;",// DeepSeek
+        "&lt;|start_response|&gt;",   // Reasoning response start
+        "Answer: ",             // DeepSeek fallback
+
+        // --- GROUP 3: TEXTUAL FALLBACKS ---
+        // Prevents the model from writing plain-text labels like "Assistant:" or "User:".
+        "Assistant:",
+        "\nAssistant:",
+        "Response:",
+        "\nResponse:",
+        "### Assistant",
+        "### Response",
+        "\nUser:",
+        "\nUser ",
+        "User:",
+        "### Instruction",
+        "### User",
+        "\nSystem:",
+        "System:",
+        "\n\nUser:",
+        "\n\nSystem:",
+        "\n\nAssistant:"
+    }
+};
+
+// ===================================================================
+// PROMPT TEMPLATING LOGIC
+// ===================================================================
+
+/**
+ * Wraps the system instructions in the format required by the specific model template.
+ */
+string GetSystemPrompt(string templateType, string prompt) {
+  switch (templateType) {
+    case "llama3":
+      return $"&lt;|begin_of_text|&gt;&lt;|start_header_id|&gt;system&lt;|end_header_id|&gt;\n\n{prompt}\n&lt;|eot_id|&gt;";
+
+    case "phi3":
+      return $"{prompt}\n\n";
+
+    case "gemma":
+       return $"&lt;start_of_turn&gt;user\n{prompt}&lt;end_of_turn&gt;\n&lt;start_of_turn&gt;model\nOK.&lt;end_of_turn&gt;\n";
+
+    case "alpaca":
+    case "openchat":
+      return $"{prompt}\n\n";
+
+    case "deepseek":
+      return $"&lt;|begin_of_sentence|&gt;{prompt}\n\n";
+
+    case "chatml":
+    default:
+      return $"&lt;|im_start|&gt;system\n{prompt}\n&lt;|im_end|&gt;\n";
+  }
+}
+
+/**
+ * Wraps user input and prepares the assistant's response header based on the template.
+ */
+string BuildUserPrompt(string templateType, string userInput) {
+  switch (templateType) {
+    case "llama3":
+      return $"&lt;|start_header_id|&gt;user&lt;|end_header_id|&gt;\n\n{userInput}&lt;|eot_id|&gt;&lt;|start_header_id|&gt;assistant&lt;|end_header_id|&gt;\n\n";
+
+    case "phi3":
+      return $"&lt;|user|&gt;\n{userInput}&lt;|end|&gt;\n&lt;|assistant|&gt;\n";
+
+    case "alpaca":
+      return $"### Instruction:\n{userInput}\n\n### Response:\n";
+
+    case "openchat":
+      return $"GPT4 Correct User: {userInput}&lt;|end_of_turn|&gt;GPT4 Correct Assistant:";
+
+    case "gemma":
+      return "&lt;start_of_turn&gt;user\n" + userInput + "&lt;end_of_turn&gt;\n&lt;start_of_turn&gt;model\n";
+
+    case "deepseek":
+      return $"User:{userInput}\n\nAssistant: ";
+
+    case "chatml":
+    default:
+      return $"&lt;|im_start|&gt;user\n{userInput}&lt;|im_end|&gt;\n&lt;|im_start|&gt;assistant\n";
+  }
+}
+
+// ===================================================================
+// UTILITY HELPERS AND CONTENT EXTRACTION
+// ===================================================================
+
+/**
+ * Helper to process the asynchronous token stream from the LLM.
+ */
+async Task ProcessAsync(IAsyncEnumerable&lt;string&gt; asyncEnumerable, Action&lt;string&gt; callback)
+{
+    await foreach (string item in asyncEnumerable)
+    {
+        callback(item);
+    }
+}
+
+public class ApiCallBlock
+{
+    public string Content { get; set; }
+    public int StartIndex { get; set; }
+    public int EndIndex { get; set; }
+}
+
+public class CodeBlockExtractor
+{
+    // Regex che cattura l'intero blocco comprese le etichette di apertura e chiusura
+    private const string ApiCallPattern = @"(```api-call[\s\S]*?```)";
+
+    /**
+     * Extracts interleaved text and API blocks.
+     * API segments are returned exactly as: ```api-call\n...\n```
+     */
+    public static List&lt;string&gt; ExtractInterleaved(string sourceText)
+    {
+        var result = new List&lt;string&gt;();
+        if (string.IsNullOrEmpty(sourceText)) return result;
+
+        // Regex.Split con il pattern tra parentesi tonde include i "delimitatori" nel risultato
+        var parts = Regex.Split(sourceText, ApiCallPattern, RegexOptions.Singleline);
+
+        foreach (var part in parts)
+        {
+            if (string.IsNullOrEmpty(part)) continue;
+
+            // Aggiungiamo il segmento alla lista (sia esso testo o blocco api-call)
+            result.Add(part.Trim());
+        }
+
+        return result;
+    }
+}
+
+/**
+ * Executes API calls and returns the interleaved list [text, ```api-call\n...\n```, text, ...]
+ */
+public List&lt;string&gt; ExtractAndExecute(dynamic Api, string response)
+{
+    var segments = CodeBlockExtractor.ExtractInterleaved(response);
+    foreach (var segment in segments)
+    {
+        if (segment.StartsWith("```api-call"))
+        {
+            string commandsRaw = segment
+                .Replace("```api-call", "")
+                .Replace("```", "")
+                .Trim();
+
+            var commands = commandsRaw.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach(var cmd in commands)
+            {
+                string cleanCmd = cmd.Trim();
+                if (!string.IsNullOrEmpty(cleanCmd))
+                {
+                    Program.Log.Info($"Executing: {cleanCmd}");
+                    try {
+                        Api.Call($"/api/{cleanCmd}");
+                    } catch (Exception e) {
+                        Program.Log.Error($"API Error: {cleanCmd} - {e.Message}");
+                    }
+                }
+            }
+        }
+    }
+    return segments;
+}
+
+/**
+ * Returns the total available system or container memory in Gigabytes.
+ */
+public static long GetTotalMemoryGB()
+{
+    // Returns the total system (or container) memory in bytes
+    var stats = GC.GetGCMemoryInfo();
+    long totalMemoryBytes = stats.TotalAvailableMemoryBytes;
+
+    // If for any reason it returns 0 or less, use a safe default of 16GB
+    if (totalMemoryBytes &lt;= 0) return 16;
+
+    return totalMemoryBytes / 1024 / 1024 / 1024;
+}
+
+/**
+ * Returns optimized LLama model parameters based on the detected system RAM.
+ */
+public ModelParams GetOptimizedParams(string modelPath)
+{
+    long totalRamGB = GetTotalMemoryGB();
+    var p = new ModelParams(modelPath);
+
+    // Common settings for all profiles
+    p.FlashAttention = true;
+    p.UseMemorymap = true;
+    p.GpuLayerCount = -1; // Attempt GPU offloading; falls back to CPU automatically if no GPU is detected
+
+    if (totalRamGB &lt;= 8)
+    {
+        // LOW RAM PROFILE (e.g., Raspberry Pi or older PCs)
+        p.ContextSize = 4096;
+        p.TypeK = GGMLType.GGML_TYPE_Q4_0;
+        p.TypeV = GGMLType.GGML_TYPE_Q4_0;
+        p.BatchSize = 128;
+        p.UBatchSize = 128;
+    }
+    else if (totalRamGB &lt;= 16)
+    {
+        // STANDARD PROFILE (The most common configuration)
+        p.ContextSize = 16384;
+        p.TypeK = GGMLType.GGML_TYPE_Q4_0;
+        p.TypeV = GGMLType.GGML_TYPE_Q4_0;
+        p.BatchSize = 512;
+        p.UBatchSize = 512;
+    }
+    else
+    {
+        // HIGH PERFORMANCE PROFILE (32GB RAM or more)
+        p.ContextSize = 32768; // Can be safely increased to 65536 if needed
+        p.TypeK = GGMLType.GGML_TYPE_Q8_0; // Use Q8 for higher precision KV cache
+        p.TypeV = GGMLType.GGML_TYPE_Q8_0;
+        p.BatchSize = 512;
+        p.UBatchSize = 512;
+    }
+
+    return p;
+}
+</ScriptContext>
+    <ScriptErrors />
+    <Data />
+    <PackageInfo>
+      <Repository>homegenie</Repository>
+      <PackageId>homegenie-ml-ai</PackageId>
+      <PackageVersion>1.0.4</PackageVersion>
+      <Id>lailama</Id>
+      <Version>1.0.10</Version>
+      <Required>true</Required>
+      <Checksum>71202C02B1AEEEB0FB2EC673285869E5</Checksum>
+    </PackageInfo>
+    <Domain>HomeAutomation.HomeGenie.Automation</Domain>
+    <Address>940</Address>
+    <Name>Lailama</Name>
+    <Description>Harness the power of Generative AI on your hardware. Chat, write code, or build advanced automations with the security of a local and private system.</Description>
+    <Group>AI - Machine Learning</Group>
+    <Features />
+    <AutoRestartEnabled>false</AutoRestartEnabled>
+    <Cloneable>false</Cloneable>
+    <Type>csharp</Type>
+    <IsEnabled>true</IsEnabled>
+  </ProgramBlock>
+  <ProgramBlock>
+    <ScriptSetup>Program
+  .AddFeature(
+    "",
+    ForCameraInputType,
+    ObjectDetection,
+    "Enable objects detection",
+    "checkbox"
+  ).AddFeature(
+    "",
+    ForCameraInputType,
+    ObjectDetectionTrigger,
+    "Comma-separated list of things (in English) that will trigger the alarm. (e.g.: cat, dog, person, backpack, suitcase)",
+    "text"
+  ).AddOption(
+    YoloModelPath,
+    Data.GetFolder() + "/yolo26n.onnx",
+    "1. Path of YOLO model file (.onnx)",
+    "text"
+  ).AddOption(
+    YoloRequestsPerSecond,
+    "15",
+    "2. Max Requests Per Second (RPS)",
+    "slider:1:30:1"
+  );
+
+Program.Run();
+</ScriptSetup>
+    <ScriptSource>var inputModules = Modules.WithFeature( ObjectDetection );
+var requestsPerSecond = Program.Option(YoloRequestsPerSecond);
+
+// Show toggle icon for this algorithm in the NVR / Video widget
+Program
+    .Emit("NVR.Vision.Algorithm", ObjectDetection)            // feature to toggle "On" in order to enable this algo
+    .Emit("NVR.Vision.Algorithm.Icon", "detection_and_zone"); // material symbol icon for the toggle button
+
+// Restart program if configuration has been changed to apply new settings.
+When.ModuleParameterChanged( (module, property) =&gt; {
+    if (module.Instance == Program.Module &amp;&amp; property.Name.StartsWith("ConfigureOptions."))
+    {
+        if (Program.IsRunning) Program.Restart();
+        return true;
+    }
+    return true;
+});
+
+var modelPath = Program.Option(YoloModelPath)?.Value;
+if (String.IsNullOrEmpty(modelPath))
+{
+    Program.Notify($"Configure the path of YOLO 'detect' model (.onnx file). {OptionButtons}");
+    Pause(5);
+    return;
+}
+
+var breathe = () =&gt; {
+    if (requestsPerSecond.DecimalValue &gt; 0)
+    {
+        Pause(1D / requestsPerSecond.DecimalValue);
+    }
+    else
+    {
+        Pause(0.2); // default is 5 RPS max
+    }
+};
+
+// For details about this implemention see
+// *ML.net* and *YoloSharp* documentation
+
+try
+{
+    var errorOccurred = false;
+    using var detectPredictor = new YoloPredictor(modelPath);
+    while (Program.IsRunning)
+    {
+        if (inputModules.SelectedModules.Count == 0)
+        {
+            Pause(1);
+            continue;
+        }
+        inputModules.Each((module) =&gt; {
+            var data = module.Command("Camera.GetPicture").GetValue();
+            if (data == null || ((byte[])data).Length == 0)
+            {
+                // I/O errors might occasionally occur and can be ignored
+                return false;
+            }
+            try
+            {
+                var result = detectPredictor.Detect((byte[])data, new YoloConfiguration { Confidence = 0.35f });
+                //Console.WriteLine($"Result: {result}");
+                //Console.WriteLine($"Speed:  {result.Speed}");
+                if (result.Count() &gt; 0)
+                {
+                    var jsonResults = "";
+                    // Emit "Sensor.ObjectDetect.Subject.Data" event if anything
+                    // mathing the configured "TriggerDetect" list
+                    // was detected in the scene.
+                    string[] matchList = module
+                        .Parameter( ObjectDetectionTrigger )?.Value
+                        .Split(',').Select(p =&gt; p.Trim())
+                        .Where(x =&gt; !string.IsNullOrEmpty(x))
+                        .ToArray();
+                    if (matchList.Length &gt; 0)
+                    {
+                        var filtered = new List&lt;Compunet.YoloSharp.Data.Detection&gt;();
+                        foreach (var r in result)
+                        {
+                            var subject = r.Name.Name;
+                            if (matchList.Contains(subject))
+                            {
+                                filtered.Add(r);
+                            }
+                        }
+                        if (filtered.Count &gt; 0)
+                        {
+                            if (module.Parameter(ObjectDetect).DecimalValue != filtered.Count)
+                            {
+                                module.Emit(ObjectDetect, filtered.Count);
+                            }
+                            else
+                            {
+                                // update value and timestamp only, do not emit event
+                                module.Parameter(ObjectDetect).SetData(filtered.Count);
+                            }
+                            foreach (var r in filtered)
+                            {
+                                module.Emit(ObjectDetectSubject, r);
+                            }
+                            jsonResults = JsonConvert.SerializeObject(filtered);
+                        }
+                        else if (module.Parameter(ObjectDetect).DecimalValue != 0 &amp;&amp; module.Parameter(ObjectDetect).IdleTime &gt; 5)
+                        {
+                            module.Emit(ObjectDetect, 0);
+                        }
+                    }
+                    else
+                    {
+                        jsonResults = JsonConvert.SerializeObject(result);
+                    }
+
+                    if (jsonResults != "")
+                    {
+                        // Emit json data for the video player (overlay data)
+                        module.Emit(VideoPlayerWidgetOverlayDetect, jsonResults);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                errorOccurred = true;
+                //Console.WriteLine(e.Message);
+            }
+            if (errorOccurred)
+            {
+                errorOccurred = false;
+                Pause(3);
+            }
+            else
+            {
+                breathe();
+            }
+            return false;
+        });
+        breathe();
+    }
+}
+catch (Exception e)
+{
+    Program.Notify($"Error: {e.Message} {OptionButtons}");
+    Pause(5);
+    return;
+}
+</ScriptSource>
+    <ScriptContext>const string
+OptionButtons = "[program_configure,program_disable]",
+YoloModelPath = "Yolo.ModelPath",
+YoloRequestsPerSecond = "Yolo.RequestsPerSecond",
+ForCameraInputType = "VideoInput,Sensor:Widget.DisplayModule=/homegenie/generic/(videoinput|camerainput)/",
+ObjectDetection = "ML.ObjectDetection",
+ObjectDetectionTrigger = $"{ObjectDetection}.TriggerDetect",
+ObjectDetect = "Sensor.ObjectDetect",
+ObjectDetectSubject = "Sensor.ObjectDetect.Subject",
+VideoPlayerWidgetOverlayDetect = "Widget.Data.VideoPlayer.Overlay.Detect";
+</ScriptContext>
+    <ScriptErrors />
+    <Data />
+    <PackageInfo>
+      <Repository>homegenie</Repository>
+      <PackageId>homegenie-ml-ai</PackageId>
+      <PackageVersion>1.0.4</PackageVersion>
+      <Id>object-detection</Id>
+      <Version>1.0.4</Version>
+      <Required>true</Required>
+      <Checksum>543179FB402664F2184C5E4545D458D5</Checksum>
+    </PackageInfo>
+    <Domain>HomeAutomation.HomeGenie.Automation</Domain>
+    <Address>910</Address>
+    <Name>Object Detection</Name>
+    <Description>Detect objects using a pre-trained YOLO model.
+</Description>
+    <Group>AI - Machine Learning</Group>
+    <Features>
+      <ProgramFeature>
+        <FieldType>checkbox</FieldType>
+        <ForDomains />
+        <ForTypes>VideoInput,Sensor:Widget.DisplayModule=/homegenie/generic/(videoinput|camerainput)/</ForTypes>
+        <Property>ML.ObjectDetection</Property>
+        <Description>Enable objects detection</Description>
+      </ProgramFeature>
+      <ProgramFeature>
+        <FieldType>text</FieldType>
+        <ForDomains />
+        <ForTypes>VideoInput,Sensor:Widget.DisplayModule=/homegenie/generic/(videoinput|camerainput)/</ForTypes>
+        <Property>ML.ObjectDetection.TriggerDetect</Property>
+        <Description>Comma-separated list of things (in English) that will trigger the alarm. (e.g.: cat, dog, person, backpack, suitcase)</Description>
+      </ProgramFeature>
+    </Features>
+    <AutoRestartEnabled>false</AutoRestartEnabled>
+    <Cloneable>false</Cloneable>
+    <Type>csharp</Type>
+    <IsEnabled>true</IsEnabled>
+  </ProgramBlock>
+  <ProgramBlock>
+    <ScriptSetup>Program
+  .AddFeature(
+    "",
+    ForCameraInputType,
+    PoseDetection,
+    "Enable pose tracking",
+    "checkbox"
+  ).AddOption(
+    "Yolo.ModelPath",
+    Data.GetFolder() + "/yolo26n-pose.onnx",
+    "1. Path of YOLO model file (.onnx)",
+    "text"
+  ).AddOption(
+    YoloRequestsPerSecond,
+    "15",
+    "2. Max Requests Per Second (RPS)",
+    "slider:1:30:1"
+  );
+
+Program.Run();
+</ScriptSetup>
+    <ScriptSource>var inputModules = Modules.WithFeature(PoseDetection);
+var requestsPerSecond = Program.Option(YoloRequestsPerSecond);
+
+// Show toggle icon for this algorithm in the NVR / Video widget
+Program
+    .Emit("NVR.Vision.Algorithm", PoseDetection)     // feature to toggle "On" in order to enable this algo
+    .Emit("NVR.Vision.Algorithm.Icon", "sports_gymnastics");          // material symbol icon for the toggle button
+
+// Restart program if configuration has been changed to apply new settings.
+When.ModuleParameterChanged( (module, property) =&gt; {
+  if (module.Instance == Program.Module &amp;&amp; property.Name.StartsWith("ConfigureOptions."))
+  {
+    if (Program.IsRunning) Program.Restart();
+    return true;
+  }
+  return true;
+});
+
+var yoloModelPath = Program.Option("Yolo.ModelPath")?.Value;
+if (String.IsNullOrEmpty(yoloModelPath))
+{
+    Program.Notify($"Configure the path of YOLO 'pose' model (.onnx file). {OptionButtons}");
+    Pause(5);
+    return;
+}
+
+var breathe = () =&gt; {
+    if (requestsPerSecond.DecimalValue &gt; 0)
+    {
+        Pause(1D / requestsPerSecond.DecimalValue);
+    }
+    else
+    {
+        Pause(0.2); // default is 5 RPS max
+    }
+};
+
+// For details about this implemention see
+// *ML.net* and *YoloSharp* documentation
+
+
+try
+{
+    var errorOccurred = false;
+    using var detectPredictor = new YoloPredictor(yoloModelPath);
+    while (Program.IsRunning)
+    {
+        if (inputModules.SelectedModules.Count == 0)
+        {
+            Pause(1);
+            continue;
+        }
+        inputModules.Each((module) =&gt; {
+            var data = module.Command("Camera.GetPicture").GetValue();
+            if (data == null || ((byte[])data).Length == 0)
+            {
+                // I/O errors might occasionally occur and can be ignored
+                return false;
+            }
+            try
+            {
+                var result = detectPredictor.Pose((byte[])data);
+                //Console.WriteLine($"Result: {result}");
+                //Console.WriteLine($"Speed:  {result.Speed}");
+                if (result.Count() &gt; 0)
+                {
+                    var jsonResults = JsonConvert.SerializeObject(result);
+                    // Emit json data for the video player (overlay data)
+                    module.Emit(VideoPlayerWidgetOverlayPose, jsonResults);
+
+                    if (module.Parameter(ObjectDetect).DecimalValue != result.Count)
+                    {
+                        module.Emit(ObjectDetect, result.Count);
+                    }
+                    else
+                    {
+                        // update value and timestamp only, do not emit event
+                        module.Parameter(ObjectDetect).SetData(result.Count);
+                    }
+
+                    //foreach (var r in result)
+                    //{
+                    //    module.Emit(ObjectDetectSubject, r);
+                    //}
+                }
+                else if (module.Parameter(ObjectDetect).DecimalValue != 0 &amp;&amp; module.Parameter(ObjectDetect).IdleTime &gt; 5)
+                {
+                    module.Emit(ObjectDetect, 0);
+                }
+            }
+            catch (Exception e)
+            {
+                errorOccurred = true;
+                Program.Notify(e.Message);
+            }
+            return false;
+            if (errorOccurred)
+            {
+                errorOccurred = false;
+                Pause(3);
+            }
+            else
+            {
+                breathe();
+            }
+        });
+        breathe();
+    }
+}
+catch (Exception e)
+{
+    Program.Notify($"Error: {e.Message} {OptionButtons}");
+    Pause(5);
+    return;
+}
+</ScriptSource>
+    <ScriptContext>const string
+OptionButtons = "[program_configure,program_disable]",
+YoloModelPath = "Yolo.ModelPath",
+YoloRequestsPerSecond = "Yolo.RequestsPerSecond",
+ForCameraInputType = "VideoInput,Sensor:Widget.DisplayModule=/homegenie/generic/(videoinput|camerainput)/",
+PoseDetection = "ML.PoseEstimation",
+ObjectDetect = "Sensor.ObjectDetect",
+ObjectDetectSubject = "Sensor.ObjectDetect.Subject",
+VideoPlayerWidgetOverlayPose = "Widget.Data.VideoPlayer.Overlay.Pose";
+</ScriptContext>
+    <ScriptErrors />
+    <Data />
+    <PackageInfo>
+      <Repository>homegenie</Repository>
+      <PackageId>homegenie-ml-ai</PackageId>
+      <PackageVersion>1.0.4</PackageVersion>
+      <Id>pose-estimation</Id>
+      <Version>1.0.4</Version>
+      <Required>true</Required>
+      <Checksum>E14D24AB2677F4CBCB5DCBC2D022DD9F</Checksum>
+    </PackageInfo>
+    <Domain>HomeAutomation.HomeGenie.Automation</Domain>
+    <Address>911</Address>
+    <Name>Pose estimation</Name>
+    <Description>Keypoint detection via pose estimation, using custom ONNX models or the default pre-trained YOLO model (human pose-specific).</Description>
+    <Group>AI - Machine Learning</Group>
+    <Features>
+      <ProgramFeature>
+        <FieldType>checkbox</FieldType>
+        <ForDomains />
+        <ForTypes>VideoInput,Sensor:Widget.DisplayModule=/homegenie/generic/(videoinput|camerainput)/</ForTypes>
+        <Property>ML.PoseEstimation</Property>
+        <Description>Enable pose tracking</Description>
+      </ProgramFeature>
+    </Features>
+    <AutoRestartEnabled>false</AutoRestartEnabled>
+    <Cloneable>false</Cloneable>
+    <Type>csharp</Type>
+    <IsEnabled>true</IsEnabled>
+  </ProgramBlock>
+</ArrayOfProgramBlock>

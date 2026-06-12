@@ -1,0 +1,162 @@
+[
+  {
+    "id": "command_turn_on",
+    "script": "$$.boundModules.on();\n"
+  },
+  {
+    "id": "command_turn_off",
+    "script": "$$.boundModules.off();\n"
+  },
+  {
+    "id": "command_set_level",
+    "script": "$$.boundModules.level = $level$;\n",
+    "config": {
+      "level": {
+        "type": "slider",
+        "options": {
+          "min": 0,
+          "max": 1.00,
+          "step": 0.01
+        },
+        "value": 0
+      }
+    }
+  },
+  {
+    "id": "command_set_color",
+    "script": "$$.boundModules.colorHsb = '$color$';\n",
+    "config": {
+      "color": {
+        "type": "color",
+        "value": "#ff0000",
+        "transform": "rgb:hsb"
+      }
+    }
+  },
+  {
+    "id": "command_thermostat_mode",
+    "script": "$$.boundModules\n    .command('Thermostat.ModeSet')\n    .submit('$mode$');\n",
+    "config": {
+      "mode": {
+        "type": "select",
+        "options": [
+          {
+            "id": "off",
+            "value": "Off"
+          },
+          {
+            "id": "heat",
+            "value": "Heat"
+          },
+          {
+            "id": "heat_eco",
+            "value": "HeatEconomy"
+          },
+          {
+            "id": "cool",
+            "value": "Cool"
+          },
+          {
+            "id": "cool_eco",
+            "value": "CoolEconomy"
+          }
+        ],
+        "value": "Off"
+      }
+    }
+  },
+  {
+    "id": "command_remote_control",
+    "script": "cmd = $data$;\n  for (i = 0; i < cmd.length; i++) {\n    $$.boundModules\n      .command('Control.SendRaw')\n      .submit(cmd[i]);\n  }\n",
+    "config": {
+      "data": {
+        "type": "capture:Receiver.RawData",
+        "value": "",
+        "transform": "multiline:array"
+      }
+    }
+  },
+  {
+    "id": "command_video_record_start",
+    "script": "$$.boundModules.each((m) => {\n    m.emit('NVR.ContinuousRecording', 'On');\n    return false;\n  });\n"
+  },
+  {
+    "id": "command_video_record_stop",
+    "script": "$$.boundModules.each((m) => {\n    m.emit('NVR.ContinuousRecording', '');\n    return false;\n  });\n"
+  },
+  {
+    "id": "program_run",
+    "script": "$$.program.run('$program$', '$options$');\n",
+    "config": {
+      "program": {
+        "options": {
+        },
+        "type": "program-select",
+        "value": 0
+      },
+      "options": {
+        "options": {
+          "maxLength": 200
+        },
+        "type": "text",
+        "value": ""
+      }
+    }
+  },
+  {
+    "id": "program_say",
+    "script": "$$.program.say('$message$');\n",
+    "config": {
+      "message": {
+        "options": {
+          "maxLength": 200
+        },
+        "type": "text",
+        "value": ""
+      }
+    }
+  },
+  {
+    "id": "net_http_call",
+    "script": "$$.net.webService('$url$').call();\n",
+    "config": {
+      "url": {
+        "options": {
+          "maxLength": 1024
+        },
+        "type": "text",
+        "value": ""
+      }
+    }
+  },
+  {
+    "id": "pause",
+    "script": "$$.pause($seconds$);\n",
+    "config": {
+      "seconds": {
+        "type": "slider",
+        "options": {
+          "min": 0.01,
+          "max": 5,
+          "step": 0.01
+        },
+        "value": 0.1,
+        "transform": "time:seconds"
+      }
+    }
+  },
+  {
+    "id": "genie_command",
+    "script": "const prompt = '$wish$';\n  $$.api.call('AI.IntentHandlers/Lailama/Prompt.Schedule', prompt);\n",
+    "config": {
+      "wish": {
+        "type": "textarea",
+        "options": {
+          "maxLength": 1000,
+          "placeholder": "E.g.: Set the heat to 22° and start the Cinema scene."
+        },
+        "value": ""
+      }
+    }
+  }
+]

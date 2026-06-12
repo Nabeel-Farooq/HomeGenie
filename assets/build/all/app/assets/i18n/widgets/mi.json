@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Whakahohe/ Monohia te perehi roa ki te whakarite ano i nga widget",
+  "$alarm_system": {
+    "arm_home": "Kainga",
+    "arm_away": "atu"
+  },
+  "$section_label": {
+    "label": "Tapanga",
+    "indicators": "Tohutohu",
+    "lights_control": "Nga rama",
+    "switches_control": "Whakawhiti"
+  },
+  "$ai_chat": {
+    "intro": "Kia ora! Ko au tō koutou AI ā-rohe. Me pēhea taku āwhina i a koe?",
+    "start_typing_prompt": "Tīmata te pato i tētahi tohu...",
+    "download_title": "Tikiake i te kōnae LLM e hiahiatia ana:",
+    "teaser_description": "Whakamahia te mana o te Generative AI i runga i ō taputapu. Kōrerorero, tuhi waehere, hanga rānei i ngā aunoatanga matatau me te haumarutanga o tētahi pūnaha ā-rohe, tūmataiti hoki.",
+    "select_model": "Kōwhiria he Tauira",
+    "feat_private": "tūmataiti",
+    "feat_offline": "Tere me te Ā-Rohe",
+    "feat_automation": "Aunoatanga",
+    "loading_model": "E utaina ana te tauira ki te mahara... Tērā pea ka roa te wā.",
+    "model": "Tauira",
+    "status": "Tūnga"
+  }
+}

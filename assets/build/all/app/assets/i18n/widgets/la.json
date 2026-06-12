@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Diu premere ut instrumenta ordines mutes (vel \"widgets\") permittere/inhibere",
+  "$alarm_system": {
+    "arm_home": "Domus",
+    "arm_away": "Absum"
+  },
+  "$section_label": {
+    "label": "Titulus",
+    "indicators": "Indicatores",
+    "lights_control": "Lumina",
+    "switches_control": "Commutatores"
+  },
+  "$ai_chat": {
+    "intro": "Salve! Intellegentia artificialis localis tua sum. Quomodo te adiuvare possum?",
+    "start_typing_prompt": "Incipe scribere admonitionem...",
+    "download_title": "Fasciculum LLM requisitum detrahe:",
+    "teaser_description": "Vim Intellegentiae Artificialis Generativae in apparatu tuo adhibe. Colloquere, codicem scribe, vel automationes provectas cum securitate systematis localis et privati construe.",
+    "select_model": "Elige exemplar",
+    "feat_private": "Privatus",
+    "feat_offline": "Celer et Localis",
+    "feat_automation": "Automatio",
+    "loading_model": "Exemplar in memoriam oneratur... Hoc fortasse aliquot momenta requiret.",
+    "model": "Modellum",
+    "status": "Status"
+  }
+}

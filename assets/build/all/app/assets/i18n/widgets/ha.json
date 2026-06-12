@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Kunna/A kashe dogon latsa don sake yin odar widget din",
+  "$alarm_system": {
+    "arm_home": "Gida",
+    "arm_away": "Away"
+  },
+  "$section_label": {
+    "label": "Lakabi",
+    "indicators": "Manuniya",
+    "lights_control": "Haske",
+    "switches_control": "Sauyawa"
+  },
+  "$ai_chat": {
+    "intro": "Sannu! Ni ne AI na yankinku. Ta yaya zan iya taimaka muku?",
+    "start_typing_prompt": "Fara rubuta saƙo...",
+    "download_title": "Sauke fayil ɗin LLM da ake buƙata:",
+    "teaser_description": "Yi amfani da ƙarfin Generative AI akan kayan aikinka. Yi hira, rubuta lambar sirri, ko gina ingantattun na'urori masu sarrafa kansu tare da tsaron tsarin gida da na sirri.",
+    "select_model": "Zaɓi Samfuri",
+    "feat_private": "Mai zaman kansa",
+    "feat_offline": "Da sauri da kuma na gida",
+    "feat_automation": "Aiki da kai",
+    "loading_model": "Ana loda samfurin zuwa ƙwaƙwalwar ajiya... Wannan na iya ɗaukar ɗan lokaci.",
+    "model": "Samfuri",
+    "status": "Matsayi"
+  }
+}

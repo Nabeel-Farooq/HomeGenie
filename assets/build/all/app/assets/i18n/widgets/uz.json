@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Vidjetlarni qayta tartiblash uchun uzoq bosib turishni yoqish/o‘chirish",
+  "$alarm_system": {
+    "arm_home": "Uy",
+    "arm_away": "Uzoqda"
+  },
+  "$section_label": {
+    "label": "Yorliq",
+    "indicators": "Ko'rsatkichlar",
+    "lights_control": "Chiroqlar",
+    "switches_control": "Kalitlar"
+  },
+  "$ai_chat": {
+    "intro": "Salom! Men sizning mahalliy AIman. Sizga qanday yordam bera olaman?",
+    "start_typing_prompt": "So'rov yozishni boshlang...",
+    "download_title": "Kerakli LLM faylini yuklab oling:",
+    "teaser_description": "Qurilmangizda Generativ AI kuchidan foydalaning. Mahalliy va xususiy tizim xavfsizligi bilan suhbatlashing, kod yozing yoki ilg'or avtomatlashtirishlarni yarating.",
+    "select_model": "Modelni tanlang",
+    "feat_private": "Xususiy",
+    "feat_offline": "Tez va mahalliy",
+    "feat_automation": "Avtomatlashtirish",
+    "loading_model": "Model xotiraga yuklanmoqda... Bu bir necha daqiqa vaqt olishi mumkin.",
+    "model": "Model",
+    "status": "Holat"
+  }
+}

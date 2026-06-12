@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Ji bo ji nû ve rêzkirina widgetan pêlkirina dirêj çalak/neçalak bike",
+  "$alarm_system": {
+    "arm_home": "Xane",
+    "arm_away": "Serve"
+  },
+  "$section_label": {
+    "label": "Awanasî",
+    "indicators": "Nîşander",
+    "lights_control": "Ronahî",
+    "switches_control": "Guhêrbar"
+  },
+  "$ai_chat": {
+    "intro": "Silav! Ez AI-ya herêmî ya we me. Ez çawa dikarim alîkariya we bikim?",
+    "start_typing_prompt": "Dest bi nivîsandina fermanekê bike...",
+    "download_title": "Pelê LLM-ê yê pêwîst dakêşin:",
+    "teaser_description": "Hêza AI-ya Generative li ser alavên xwe bikar bînin. Bi ewlehiya pergalek herêmî û taybet sohbet bikin, kodê binivîsin, an jî otomasyonên pêşkeftî ava bikin.",
+    "select_model": "Modelek Hilbijêre",
+    "feat_private": "Taybet",
+    "feat_offline": "Lez û Herêmî",
+    "feat_automation": "Otomatîkî",
+    "loading_model": "Model tê barkirin nav bîrê... Ev dibe ku çend kêliyan bidome.",
+    "model": "Cins",
+    "status": "Cî"
+  }
+}

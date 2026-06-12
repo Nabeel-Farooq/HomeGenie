@@ -1,0 +1,35 @@
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+[Bb]in/
+[Oo]bj/
+
+# Temporary and local IDE/System files
+*.userprefs
+*.suo
+*.pidb
+Thumbs.db
+.run
+.idea
+**/*.DotSettings.user
+
+# Nuget packages
+**/packages/*
+!**/packages/repositories.config
+
+
+# temporary (old structure files, will be removed)
+
+HomeGenie_Windows/\.vs/
+Doxy/homegenie_api*
+*/Packager/Output/
+
+# new structure files
+
+assets/deploy/linux/Output/
+assets/deploy/linux/Doxy/homegenie_api*
+dist/
+!assets/build/all/data/**
+

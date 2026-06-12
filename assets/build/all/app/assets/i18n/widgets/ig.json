@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Kwado/ Gbanyụọ ogologo pịa ka ọdọrọ wijetị",
+  "$alarm_system": {
+    "arm_home": "Ụlọ",
+    "arm_away": "Wepụ"
+  },
+  "$section_label": {
+    "label": "Labelụ",
+    "indicators": "Ihe ngosi",
+    "lights_control": "Ọkụ",
+    "switches_control": "Mgbanwe"
+  },
+  "$ai_chat": {
+    "intro": "Ndewo! Abụ m onye na-ahụ maka ọgụgụ isi obodo gị. Kedu ka m ga-esi nyere gị aka?",
+    "start_typing_prompt": "Malite ịpịnye ihe ozugbo...",
+    "download_title": "Budata faịlụ LLM achọrọ:",
+    "teaser_description": "Jiri ike nke Generative AI mee ihe na ngwaike gị. Kpaa nkata, dee koodu, ma ọ bụ wuo akpaaka dị elu site na nchekwa nke sistemụ mpaghara na nkeonwe.",
+    "select_model": "Họrọ ụdị",
+    "feat_private": "Nkeonwe",
+    "feat_offline": "Ngwa ngwa na mpaghara",
+    "feat_automation": "Akpaaka",
+    "loading_model": "Na-ebugo ụdị ihe nlereanya n'ime ebe nchekwa... Nke a nwere ike were obere oge.",
+    "model": "Ụdị nlereanya",
+    "status": "Ọkwa"
+  }
+}

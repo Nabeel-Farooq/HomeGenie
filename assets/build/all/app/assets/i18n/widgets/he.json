@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "הפעלה/השבתה של לחיצה ארוכה כדי לשנות את סדר הווידג'טים",
+  "$alarm_system": {
+    "arm_home": "בַּיִת",
+    "arm_away": "רָחוֹק"
+  },
+  "$section_label": {
+    "label": "מַדבֵּקָה",
+    "indicators": "אינדיקטורים",
+    "lights_control": "אורות",
+    "switches_control": "מתגים"
+  },
+  "$ai_chat": {
+    "intro": "שלום! אני הבינה המלאכותית המקומית שלכם. איך אני יכול לעזור לכם?",
+    "start_typing_prompt": "התחל להקליד הנחיה...",
+    "download_title": "הורד את קובץ ה-LLM הנדרש:",
+    "teaser_description": "רתמו את כוחה של בינה מלאכותית גנרטיבית בחומרה שלכם. שוחחו בצ'אט, כתבו קוד או בנו אוטומציות מתקדמות עם האבטחה של מערכת מקומית ופרטית.",
+    "select_model": "בחר דגם",
+    "feat_private": "פְּרָטִי",
+    "feat_offline": "מהיר ומקומי",
+    "feat_automation": "אוטומציה",
+    "loading_model": "טוען מודל לזיכרון... זה עשוי לקחת מספר רגעים.",
+    "model": "דֶגֶם",
+    "status": "סטָטוּס"
+  }
+}

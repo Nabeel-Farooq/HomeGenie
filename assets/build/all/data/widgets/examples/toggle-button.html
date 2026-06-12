@@ -1,0 +1,22 @@
+<div class="container">
+  <div class="button-shadow"></div>
+
+  <div #button class="button"
+       (click)="toggle()"
+       @set="buttonState($this)">
+
+    <span @active
+          @if="level() > 0"
+           @then="$this.addClass('filled')"
+           @else="$this.removeClass('filled')"
+          class="material-symbols-outlined button-icon">lightbulb</span>
+
+  </div>
+
+</div>
+
+<div #title class="label"></div>
+
+<div @hide-if="bound" class="message">
+  no module bound
+</div>

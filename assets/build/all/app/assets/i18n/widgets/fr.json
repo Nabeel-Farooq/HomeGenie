@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Activer/désactiver l'appui long pour réorganiser les widgets",
+  "$alarm_system": {
+    "arm_home": "Maison",
+    "arm_away": "Loin"
+  },
+  "$section_label": {
+    "label": "Étiquette",
+    "indicators": "Indicateurs",
+    "lights_control": "Lumières",
+    "switches_control": "Interrupteurs"
+  },
+  "$ai_chat": {
+    "intro": "Bonjour ! Je suis votre IA locale. Comment puis-je vous aider ?",
+    "start_typing_prompt": "Commencez à saisir une invite...",
+    "download_title": "Télécharger le fichier LLM requis :",
+    "teaser_description": "Exploitez la puissance de l'IA générative sur votre matériel. Discutez, programmez ou créez des automatisations avancées en toute sécurité grâce à un système local et privé.",
+    "select_model": "Sélectionnez un modèle",
+    "feat_private": "Privé",
+    "feat_offline": "Rapide et local",
+    "feat_automation": "Automation",
+    "loading_model": "Chargement du modèle en mémoire... Cela peut prendre quelques instants.",
+    "model": "Modèle",
+    "status": "Statut"
+  }
+}

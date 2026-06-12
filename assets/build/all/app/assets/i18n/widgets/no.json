@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Aktiver/deaktiver langt trykk for å endre rekkefølgen på widgeter",
+  "$alarm_system": {
+    "arm_home": "Hjem",
+    "arm_away": "Borte"
+  },
+  "$section_label": {
+    "label": "Merkelapp",
+    "indicators": "Indikatorer",
+    "lights_control": "Lys",
+    "switches_control": "Brytere"
+  },
+  "$ai_chat": {
+    "intro": "Hallo! Jeg er din lokale AI. Hvordan kan jeg hjelpe deg?",
+    "start_typing_prompt": "Begynn å skrive en melding...",
+    "download_title": "Last ned nødvendig LLM-fil:",
+    "teaser_description": "Utnytt kraften til generativ AI på maskinvaren din. Chat, skriv kode eller bygg avanserte automatiseringer med sikkerheten til et lokalt og privat system.",
+    "select_model": "Velg en modell",
+    "feat_private": "Privat",
+    "feat_offline": "Raskt og lokalt",
+    "feat_automation": "Automasjon",
+    "loading_model": "Laster inn modellen i minnet ... Dette kan ta noen øyeblikk.",
+    "model": "Modell",
+    "status": "Status"
+  }
+}

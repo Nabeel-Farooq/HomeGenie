@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Dayakan/Lumpuhkan tekan lama untuk menyusun semula widget",
+  "$alarm_system": {
+    "arm_home": "Rumah",
+    "arm_away": "jauh"
+  },
+  "$section_label": {
+    "label": "Label",
+    "indicators": "Penunjuk",
+    "lights_control": "lampu",
+    "switches_control": "Suis"
+  },
+  "$ai_chat": {
+    "intro": "Halo! Saya AI tempatan anda. Bagaimanakah saya boleh membantu anda?",
+    "start_typing_prompt": "Mula menaip gesaan...",
+    "download_title": "Muat turun fail LLM yang diperlukan:",
+    "teaser_description": "Manfaatkan kuasa Generatif AI pada perkakasan anda. Bersembang, menulis kod atau membina automasi lanjutan dengan keselamatan sistem tempatan dan persendirian.",
+    "select_model": "Pilih Model",
+    "feat_private": "Persendirian",
+    "feat_offline": "Pantas dan Tempatan",
+    "feat_automation": "Automasi",
+    "loading_model": "Memuatkan model ke dalam memori... Ini mungkin mengambil masa beberapa saat.",
+    "model": "Model",
+    "status": "Status"
+  }
+}

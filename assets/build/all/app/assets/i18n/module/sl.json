@@ -1,0 +1,18 @@
+{
+  "stats.time_range": "Časovni razpon",
+  "stats.one_second": "Ena sekunda",
+  "stats.five_seconds": "5 sekund",
+  "stats.ten_seconds": "10 sekund",
+  "stats.half_minute": "30 sekund",
+  "stats.one_minute": "Ena minuta",
+  "stats.ten_minutes": "10 minut",
+  "stats.half_hour": "30 minut",
+  "stats.one_hour": "Ena ura",
+  "stats.three_hours": "3 ure",
+  "stats.six_hours": "6 ur",
+  "stats.twelve_hours": "12 ur",
+  "stats.twentyfour_hours": "24 ur",
+  "stats.chart_provider": "Ponudnik grafikonov",
+  "stats.five_minutes": "5 minut",
+  "stats.fifteen_minutes": "15 minut"
+}

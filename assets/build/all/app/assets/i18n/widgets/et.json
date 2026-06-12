@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Vidinate ümberjärjestamise lubamine/keelamine pika vajutusega",
+  "$alarm_system": {
+    "arm_home": "Avaleht",
+    "arm_away": "Ära"
+  },
+  "$section_label": {
+    "label": "Silt",
+    "indicators": "Indikaatorid",
+    "lights_control": "Tuled",
+    "switches_control": "Lülitid"
+  },
+  "$ai_chat": {
+    "intro": "Tere! Olen teie kohalik tehisintellekt. Kuidas saan teid aidata?",
+    "start_typing_prompt": "Hakka viipa kirjutama...",
+    "download_title": "Laadige alla vajalik LLM-fail:",
+    "teaser_description": "Rakenda oma riistvaral generatiivse tehisintellekti võimsust. Vestle, kirjuta koodi või loo täiustatud automatiseeringuid kohaliku ja privaatse süsteemi turvalisuse abil.",
+    "select_model": "Valige mudel",
+    "feat_private": "Privaatne",
+    "feat_offline": "Kiire ja kohalik",
+    "feat_automation": "Automatiseerimine",
+    "loading_model": "Mudeli laadimine mällu... See võib võtta paar hetke.",
+    "model": "Mudel",
+    "status": "Staatus"
+  }
+}

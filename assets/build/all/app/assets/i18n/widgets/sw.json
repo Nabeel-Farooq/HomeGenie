@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Washa/Zima mibofyo mirefu ili kupanga upya wijeti",
+  "$alarm_system": {
+    "arm_home": "Nyumbani",
+    "arm_away": "Mbali"
+  },
+  "$section_label": {
+    "label": "Lebo",
+    "indicators": "Viashiria",
+    "lights_control": "Taa",
+    "switches_control": "Swichi"
+  },
+  "$ai_chat": {
+    "intro": "Habari! Mimi ni mtaalamu wa akili bandia wa eneo lako. Ninawezaje kukusaidia?",
+    "start_typing_prompt": "Anza kuandika kidokezo...",
+    "download_title": "Pakua faili ya LLM inayohitajika:",
+    "teaser_description": "Tumia nguvu ya Generative AI kwenye vifaa vyako. Piga gumzo, andika msimbo, au jenga otomatiki za hali ya juu kwa usalama wa mfumo wa ndani na wa kibinafsi.",
+    "select_model": "Chagua Mfano",
+    "feat_private": "Privat",
+    "feat_offline": "Haraka na ya Karibu",
+    "feat_automation": "Otomatiki",
+    "loading_model": "Inapakia modeli kwenye kumbukumbu... Hii inaweza kuchukua muda mfupi.",
+    "model": "Mfano",
+    "status": "Hali"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Cumasaigh/Díchumasaigh brúigh fhada chun giuirléidí a athordú",
+  "$alarm_system": {
+    "arm_home": "Baile",
+    "arm_away": "Ar shiúl"
+  },
+  "$section_label": {
+    "label": "Lipéad",
+    "indicators": "Táscairí",
+    "lights_control": "Soilse",
+    "switches_control": "Lasca"
+  },
+  "$ai_chat": {
+    "intro": "Haigh! Is mise d'Intleacht Shaorga áitiúil. Conas is féidir liom cabhrú leat?",
+    "start_typing_prompt": "Tosaigh ag clóscríobh leid...",
+    "download_title": "Íoslódáil an comhad LLM riachtanach:",
+    "teaser_description": "Bain úsáid as cumhacht na hintleachta saorga giniúna ar do chrua-earraí. Déan comhrá, scríobh cód, nó tóg uathoibrithe chun cinn le slándáil chórais áitiúil agus phríobháidigh.",
+    "select_model": "Roghnaigh Samhail",
+    "feat_private": "Príobháideach",
+    "feat_offline": "Gasta agus Áitiúil",
+    "feat_automation": "Uathoibriú",
+    "loading_model": "Ag lódáil an tsamhail isteach sa chuimhne... D’fhéadfadh sé seo cúpla nóiméad a thógáil.",
+    "model": "Samhail",
+    "status": "Stádas"
+  }
+}

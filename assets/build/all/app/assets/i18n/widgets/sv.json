@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Aktivera/avaktivera långt tryck för att ändra ordningen på widgetar",
+  "$alarm_system": {
+    "arm_home": "Hem",
+    "arm_away": "Bort"
+  },
+  "$section_label": {
+    "label": "Märka",
+    "indicators": "Indikatorer",
+    "lights_control": "Ljus",
+    "switches_control": "Växlar"
+  },
+  "$ai_chat": {
+    "intro": "Hej! Jag är er lokala AI. Hur kan jag hjälpa er?",
+    "start_typing_prompt": "Börja skriva en prompt...",
+    "download_title": "Ladda ner nödvändig LLM-fil:",
+    "teaser_description": "Utnyttja kraften hos generativ AI på din hårdvara. Chatta, skriv kod eller bygg avancerade automatiseringar med säkerheten hos ett lokalt och privat system.",
+    "select_model": "Välj en modell",
+    "feat_private": "Privat",
+    "feat_offline": "Snabbt och lokalt",
+    "feat_automation": "Automatisering",
+    "loading_model": "Laddar modellen till minnet... Det kan ta en liten stund.",
+    "model": "Modell",
+    "status": "Status"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Omogući/Onemogući dugi pritisak za promjenu redoslijeda widgeta",
+  "$alarm_system": {
+    "arm_home": "Dom",
+    "arm_away": "Daleko"
+  },
+  "$section_label": {
+    "label": "Označiti",
+    "indicators": "Pokazatelji",
+    "lights_control": "Svjetla",
+    "switches_control": "Prekidači"
+  },
+  "$ai_chat": {
+    "intro": "Bok! Ja sam vaša lokalna umjetna inteligencija. Kako vam mogu pomoći?",
+    "start_typing_prompt": "Počni tipkati upit...",
+    "download_title": "Preuzmite potrebnu LLM datoteku:",
+    "teaser_description": "Iskoristite snagu generativne umjetne inteligencije na svom hardveru. Čavrljajte, pišite kod ili izgradite napredne automatizacije uz sigurnost lokalnog i privatnog sustava.",
+    "select_model": "Odaberite model",
+    "feat_private": "Privatno",
+    "feat_offline": "Brzo i lokalno",
+    "feat_automation": "Automatizacija",
+    "loading_model": "Učitavanje modela u memoriju... Ovo može potrajati nekoliko trenutaka.",
+    "model": "Model",
+    "status": "Status"
+  }
+}

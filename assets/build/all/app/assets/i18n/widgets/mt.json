@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Ippermetti/Iddiżattiva l-ippressar twil biex tbiddel l-ordni tal-widgets",
+  "$alarm_system": {
+    "arm_home": "Dar",
+    "arm_away": "'Il bogħod"
+  },
+  "$section_label": {
+    "label": "Tikketta",
+    "indicators": "Indikaturi",
+    "lights_control": "Dwal",
+    "switches_control": "Swiċċijiet"
+  },
+  "$ai_chat": {
+    "intro": "Bongu! Jiena l-AI lokali tiegħek. Kif nista' ngħinek?",
+    "start_typing_prompt": "Ibda ittajpja prompt...",
+    "download_title": "Niżżel il-fajl LLM meħtieġ:",
+    "teaser_description": "Sfrutta l-qawwa tal-AI Ġenerattiva fuq il-hardware tiegħek. Iċċettja, ikteb kodiċi, jew ibni awtomazzjonijiet avvanzati bis-sigurtà ta' sistema lokali u privata.",
+    "select_model": "Agħżel Mudell",
+    "feat_private": "Privat",
+    "feat_offline": "Veloċi u Lokali",
+    "feat_automation": "Awtomazzjoni",
+    "loading_model": "Qed jitgħabba l-mudell fil-memorja... Dan jista' jieħu ftit mumenti.",
+    "model": "Mudell",
+    "status": "Status"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Iespējot/atspējot garo nospiešanu, lai pārkārtotu logrīkus",
+  "$alarm_system": {
+    "arm_home": "Sākums",
+    "arm_away": "Prombūtnē"
+  },
+  "$section_label": {
+    "label": "Etiķete",
+    "indicators": "Indikatori",
+    "lights_control": "Gaismas",
+    "switches_control": "Slēdži"
+  },
+  "$ai_chat": {
+    "intro": "Sveiki! Esmu jūsu vietējais mākslīgais intelekts. Kā varu jums palīdzēt?",
+    "start_typing_prompt": "Sāciet rakstīt uzvedni...",
+    "download_title": "Lejupielādējiet nepieciešamo LLM failu:",
+    "teaser_description": "Izmantojiet ģeneratīvā mākslīgā intelekta jaudu savā aparatūrā. Tērzējiet, rakstiet kodu vai veidojiet uzlabotas automatizācijas, izmantojot lokālas un privātas sistēmas drošību.",
+    "select_model": "Izvēlieties modeli",
+    "feat_private": "Privāts",
+    "feat_offline": "Ātri un lokāli",
+    "feat_automation": "Automatizācija",
+    "loading_model": "Notiek modeļa ielāde atmiņā... Tas var aizņemt dažas minūtes.",
+    "model": "Modelis",
+    "status": "Statuss"
+  }
+}

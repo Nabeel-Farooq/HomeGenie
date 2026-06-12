@@ -1,0 +1,656 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ArrayOfProgramBlock xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <ProgramBlock>
+    <ScriptSetup>var gpio_pins = new string[]{
+	"GPIO17 (pin 11)=11",
+	"GPIO27 (pin 13)=13",
+	"GPIO22 (pin 15)=15",
+
+	"GPIO4 (pin 7)=7",
+	"GPIO5 (pin 29)=29",
+	"GPIO6 (pin 31)=31",
+	"GPIO13 (pin 33)=33",
+	"GPIO19 (pin 35)=35",
+	"GPIO26 (pin 37)=37",
+
+	"GPIO23 (pin 16)=16",
+	"GPIO24 (pin 18)=18",
+	"GPIO25 (pin 22)=22",
+
+	"GPIO12 (pin 32)=32",
+	"GPIO16 (pin 36)=36",
+//	"GPIO20 (pin 38)=38", // &lt;-- this pin seems to be used by the system
+	"GPIO21 (pin 40)=40"
+};
+
+Program.Setup(() =&gt; {
+  Program
+    .AddOption("GPIO.Pin", "", "Pin number", "select:" + string.Join(",", gpio_pins))
+    .AddOption("UpdateInterval", "60", "Update Interval (seconds)", "slider:10:3600:10");
+});
+Program.Run();
+</ScriptSetup>
+    <ScriptSource>// Based on RaspberrySharp libraries for programming GPIO/I2C/SPI devices
+// Docs https://github.com/genemars/raspberry-sharp-io
+
+#using Raspberry.IO.GeneralPurpose
+#using Raspberry.IO.Components.Sensors.Temperature.Dht
+
+// restart and reconfigure if a configuration parameter changed
+When.ModuleParameterChanged((module, property) =&gt; {
+  if (module.Instance == Program.Module &amp;&amp; property.Name.StartsWith("ConfigureOptions.")) {
+    Program.Restart();
+  }
+  // returning true, will route event to other listeners
+  return true;
+});
+
+var notificationButtons = " [program_configure,program_disable]";
+var pinName = "P1Pin" + Program.Option("GPIO.Pin").Value;
+if (pinName.Length &lt; 6) {
+  Program.Notify("Data pin not selected." + notificationButtons);
+  Pause(10);
+  return;
+}
+
+var measurePin = (ConnectorPin)Enum.Parse(typeof(ConnectorPin), pinName);
+// Allocate GPIO connection
+IGpioConnectionDriver connection = null;
+try
+{
+  connection = GpioConnectionSettings.GetBestDriver(GpioConnectionDriverCapabilities.CanChangePinDirectionRapidly);
+}
+catch (Exception e)
+{
+  // An error occurred
+  Program.Notify($"Error: {e.Message}" + notificationButtons);
+  Pause(10);
+  return; // exit and restart program
+}
+When.ProgramStopping(() =&gt; {
+  connection.Release(measurePin.ToProcessor());
+  return true;
+});
+
+var moduleDomain = "Components.DHT11";
+var moduleAddress = PinMapping.ToProcessor(measurePin).ToString().Substring(3); // get GPIO#
+Program.AddModule(moduleDomain, moduleAddress, "Sensor");
+var dhtModule = Modules
+    .InDomain(moduleDomain)
+    .WithAddress(moduleAddress).Get();
+
+while (Program.IsEnabled)
+{
+  try {
+    using (var pin = connection.InOut(measurePin))
+      using (var dhtConnection = new Dht11Connection(pin))
+    {
+      var data = dhtConnection.GetData();
+      if (data != null)
+      {
+        if (data.RelativeHumidity.Percent != 0 || data.Temperature.DegreesCelsius != 0) {
+          // data read succesfully
+          dhtModule
+            .Emit("Sensor.Humidity", data.RelativeHumidity.Percent)
+            .Emit("Sensor.Temperature", data.Temperature.DegreesCelsius);
+        }
+      }
+      else
+      {
+        Program.Notify("Could not read data from sensor." + notificationButtons);
+      }
+    }
+  } catch (Exception e) {
+    Program.Notify("Error: " + e.Message + notificationButtons);
+  }
+
+  var pause = Program.Option("UpdateInterval").DecimalValue;
+  if (pause == 0) pause = 60; // default pause is 1 minute
+  Pause(pause);
+}
+</ScriptSource>
+    <ScriptContext />
+    <ScriptErrors />
+    <Data />
+    <PackageInfo>
+      <Repository>homegenie</Repository>
+      <PackageId>homegenie-iot-sharp</PackageId>
+      <PackageVersion>1.0.0</PackageVersion>
+      <Id>dht-11-sensor</Id>
+      <Version>1.0.1</Version>
+      <Required>false</Required>
+      <Checksum>1DC4570DC1AECD6D769FA45E700A779A</Checksum>
+    </PackageInfo>
+    <Domain>HomeAutomation.HomeGenie.Automation</Domain>
+    <Address>601</Address>
+    <Name>DHT-11 Sensor</Name>
+    <Description>Read temperature and humidity from a DHT-11 connected to GPIO.
+</Description>
+    <Group>Raspberry Pi</Group>
+    <Features />
+    <AutoRestartEnabled>false</AutoRestartEnabled>
+    <Cloneable>true</Cloneable>
+    <Type>CSharp</Type>
+    <IsEnabled>true</IsEnabled>
+  </ProgramBlock>
+  <ProgramBlock>
+    <ScriptSetup>var gpio_pins = new string[]{
+	"GPIO17 (pin 11)=11",
+	"GPIO27 (pin 13)=13",
+	"GPIO22 (pin 15)=15",
+
+	"GPIO4 (pin 7)=7",
+	"GPIO5 (pin 29)=29",
+	"GPIO6 (pin 31)=31",
+	"GPIO13 (pin 33)=33",
+	"GPIO19 (pin 35)=35",
+	"GPIO26 (pin 37)=37",
+
+	"GPIO23 (pin 16)=16",
+	"GPIO24 (pin 18)=18",
+	"GPIO25 (pin 22)=22",
+
+	"GPIO12 (pin 32)=32",
+	"GPIO16 (pin 36)=36",
+//	"GPIO20 (pin 38)=38", // &lt;-- this pin seems to be used by the system
+	"GPIO21 (pin 40)=40"
+};
+
+Program.Setup(() =&gt; {
+  Program
+    .AddOption("GPIO.Pin", "", "Pin number", "select:" + string.Join(",", gpio_pins))
+    .AddOption("UpdateInterval", "60", "Update Interval (seconds)", "slider:10:3600:10");
+});
+Program.Run();
+</ScriptSetup>
+    <ScriptSource>// Based on RaspberrySharp libraries for programming GPIO/I2C/SPI devices
+// Docs https://github.com/genemars/raspberry-sharp-io
+
+#using Raspberry.IO.GeneralPurpose
+#using Raspberry.IO.Components.Sensors.Temperature.Dht
+
+// restart and reconfigure if a configuration parameter changed
+When.ModuleParameterChanged((module, property) =&gt; {
+  if (module.Instance == Program.Module &amp;&amp; property.Name.StartsWith("ConfigureOptions.")) {
+    Program.Restart();
+  }
+  // returning true, will route event to other listeners
+  return true;
+});
+
+var notificationButtons = " [program_configure,program_disable]";
+var pinName = "P1Pin" + Program.Option("GPIO.Pin").Value;
+if (pinName.Length &lt; 6) {
+  Program.Notify("Data pin not selected." + notificationButtons);
+  Pause(10);
+  return;
+}
+
+var measurePin = (ConnectorPin)Enum.Parse(typeof(ConnectorPin), pinName);
+// Allocate GPIO connection
+IGpioConnectionDriver connection = null;
+try
+{
+  connection = GpioConnectionSettings.GetBestDriver(GpioConnectionDriverCapabilities.CanChangePinDirectionRapidly);
+}
+catch (Exception e)
+{
+  // An error occurred
+  Program.Notify($"Error: {e.Message}" + notificationButtons);
+  Pause(10);
+  return; // exit and restart program
+}
+When.ProgramStopping(() =&gt; {
+  connection.Release(measurePin.ToProcessor());
+  return true;
+});
+
+var moduleDomain = "Components.DHT22";
+var moduleAddress = PinMapping.ToProcessor(measurePin).ToString().Substring(3); // get GPIO#
+Program.AddModule(moduleDomain, moduleAddress, "Sensor");
+var dhtModule = Modules
+    .InDomain(moduleDomain)
+    .WithAddress(moduleAddress).Get();
+
+DhtData previousData = null;
+while (Program.IsEnabled)
+{
+  try {
+    using (var pin = connection.InOut(measurePin))
+      using (var dhtConnection = new Dht22Connection(pin))
+    {
+      var data = dhtConnection.GetData();
+      if (data != null)
+      {
+        if (previousData == null
+          || (Math.Abs(data.RelativeHumidity.Percent - previousData.RelativeHumidity.Percent) &lt; 20
+            &amp;&amp; (Math.Abs(data.Temperature.DegreesCelsius - previousData.Temperature.DegreesCelsius) &lt; 8))) {
+          // data read succesfully
+          dhtModule
+            .Emit("Sensor.Humidity", data.RelativeHumidity.Percent)
+            .Emit("Sensor.Temperature", data.Temperature.DegreesCelsius);
+        }
+        previousData = data;
+      } else {
+        Program.Notify("Could not read data from sensor." + notificationButtons);
+      }
+    }
+  } catch (Exception e) {
+    Program.Notify("Error: " + e.Message + notificationButtons);
+  }
+  var pause = Program.Option("UpdateInterval").DecimalValue;
+  if (pause == 0) pause = 60; // default pause is 1 minute
+  Pause(pause);
+}
+</ScriptSource>
+    <ScriptContext />
+    <ScriptErrors />
+    <Data />
+    <PackageInfo>
+      <Repository>homegenie</Repository>
+      <PackageId>homegenie-iot-sharp</PackageId>
+      <PackageVersion>1.0.0</PackageVersion>
+      <Id>dht-22-sensor</Id>
+      <Version>1.0.1</Version>
+      <Required>false</Required>
+      <Checksum>0AA70E63CF56377C3CC51AA27E59027C</Checksum>
+    </PackageInfo>
+    <Domain>HomeAutomation.HomeGenie.Automation</Domain>
+    <Address>602</Address>
+    <Name>DHT-22 Sensor</Name>
+    <Description>Read temperature and humidity from a DHT-22 connected to GPIO.
+</Description>
+    <Group>Raspberry Pi</Group>
+    <Features />
+    <AutoRestartEnabled>false</AutoRestartEnabled>
+    <Cloneable>true</Cloneable>
+    <Type>CSharp</Type>
+    <IsEnabled>false</IsEnabled>
+  </ProgramBlock>
+  <ProgramBlock>
+    <ScriptSetup>var gpio_pins = new string[]{
+	"GPIO17 (pin 11)=11",
+	"GPIO27 (pin 13)=13",
+	"GPIO22 (pin 15)=15",
+
+	"GPIO4 (pin 7)=7",
+	"GPIO5 (pin 29)=29",
+	"GPIO6 (pin 31)=31",
+	"GPIO13 (pin 33)=33",
+	"GPIO19 (pin 35)=35",
+	"GPIO26 (pin 37)=37",
+
+	"GPIO23 (pin 16)=16",
+	"GPIO24 (pin 18)=18",
+	"GPIO25 (pin 22)=22",
+
+	"GPIO12 (pin 32)=32",
+	"GPIO16 (pin 36)=36",
+//	"GPIO20 (pin 38)=38", // &lt;-- this pin seems to be used by the system
+	"GPIO21 (pin 40)=40"
+};
+
+Program.Setup(()=&gt; {
+  Program
+	.AddOption("GPIO.Pin", "", "Pin number", "select:" + string.Join(",", gpio_pins))
+	.AddOption("GPIO.Pin.Reversed", "", "Reverse pin value", "checkbox")
+	.AddOption("GPIO.Pin.Mode", "1", "Pin mode", "select:Output=1,Input=0,Input pull-down=2,Input pull-up=3");
+});
+Program.Run();
+</ScriptSetup>
+    <ScriptSource>// Based on RaspberrySharp libraries for programming GPIO/I2C/SPI devices
+// Docs https://github.com/genemars/raspberry-sharp-io
+
+#using Raspberry.IO.GeneralPurpose
+
+// restart and reconfigure if a configuration parameter changed
+When.ModuleParameterChanged((module, property) =&gt; {
+  if (module.Instance == Program.Module &amp;&amp; property.Name.StartsWith("ConfigureOptions.")) {
+    Program.Restart();
+  }
+  // returning true, will route event to other listeners
+  return true;
+});
+
+var pinMode = Program.Option("GPIO.Pin.Mode").DecimalValue;
+// pinMode == 0 -&gt; Input
+// pinMode == 1 -&gt; Output
+// pinMode == 2 -&gt; Input pull-down
+// pinMode == 3 -&gt; Input pull-up
+var pinName = "P1Pin" + Program.Option("GPIO.Pin").Value;
+if (pinName.Length &lt; 6) {
+  Program.Notify("GPIO pin not selected. [program_configure,program_disable]");
+  Pause(10);
+  return;
+}
+var pin = (ConnectorPin)Enum.Parse(typeof(ConnectorPin), pinName);
+// Set GPIO pin configuration
+var pinConnection = (PinConfiguration)(pinMode == 1
+  ? new OutputPinConfiguration(PinMapping.ToProcessor(pin))
+  : new InputPinConfiguration(PinMapping.ToProcessor(pin)));
+if (pinMode == 2) ((InputPinConfiguration)pinConnection).Resistor = PinResistor.PullDown;
+if (pinMode == 3) ((InputPinConfiguration)pinConnection).Resistor = PinResistor.PullUp;
+pinConnection.Name = pinName;
+pinConnection.Reversed = Program.Option("GPIO.Pin.Reversed").Value == "On";
+var cfg = new PinConfiguration[1] {
+    pinConnection
+};
+
+// Add virtual module for this switch
+const string moduleDomain = "RaspberryPi.GPIO";
+string moduleAddress = PinMapping.ToProcessor(pin).ToString().Substring(3); // get GPIO#
+Program.AddModule(moduleDomain, moduleAddress, "Switch", "homegenie/generic/switch");
+var mod = Modules.InDomain(moduleDomain).WithAddress(moduleAddress).Get();
+
+// Allocate GPIO connection
+GpioConnection connection = null;
+try
+{
+  // Create GPIO connection with default driver
+  connection = new GpioConnection(cfg);
+  // -- OR -- set the GPIO connection driver manually
+  //var settings = new GpioConnectionSettings();
+  //settings.Driver = new FileGpioConnectionDriver();
+  //connection = new GpioConnection(settings, cfg);
+}
+catch (Exception e)
+{
+  // An error occurred
+  Program.Notify($"GPIO pin {pinName}", $"Error: {e.Message} [program_configure,program_disable]");
+  Pause(10);
+  return; // exit and restart program
+}
+
+// Listen and report pin status changes
+var pinChanged = new EventHandler&lt;PinStatusEventArgs&gt;((sender, args) =&gt; {
+  var address = args.Configuration.Name;
+  mod.Emit(
+    "Status.Level",
+    args.Enabled ? "1" : "0",
+    address
+  );
+});
+connection.PinStatusChanged += pinChanged;
+
+// release allocated resources when program is stopping
+When.ProgramStopping(()=&gt;{
+  connection.PinStatusChanged -= pinChanged;
+  ((IDisposable)connection).Dispose();
+  return true;
+});
+
+// read and store current pins status
+mod.Parameter("Status.Level").Value = connection[pinName] ? "1" : "0";
+
+if (pinMode == 1) { // Output
+  mod.Instance.DeviceType = ModuleTypes.Switch;
+  mod.Emit("Widget.DisplayModule", "homegenie/generic/switch");
+  // implement serice API 'Control.On', 'Control.Off', 'Control.Toggle' to control this GPIO
+  var moduleServiceUrl = mod.Instance.Domain + "/" + mod.Instance.Address;
+  Api.Handle(moduleServiceUrl, ( args ) =&gt; {
+    var request = Api.Parse(args);
+    try
+    {
+      //string address = request.Address;
+      string command = request.Command;
+      switch(command)
+      {
+        case "Control.On":
+          connection[pinName] = true;
+          break;
+        case "Control.Off":
+          connection[pinName] = false;
+          break;
+        case "Control.Toggle":
+          connection.Toggle(pinName);
+          break;
+      }
+      return new ResponseStatus(Status.Ok);
+    } 
+    catch (Exception ex) 
+    { 
+      Program.Notify(ex.Message);
+    }
+    return null;
+  });
+} else { // Input
+    mod.Instance.DeviceType = ModuleTypes.Sensor;
+    mod.Emit("Widget.DisplayModule", "homegenie/generic/sensor");
+}
+
+Program.GoBackground();
+</ScriptSource>
+    <ScriptContext />
+    <ScriptErrors />
+    <Data />
+    <PackageInfo>
+      <Repository>homegenie</Repository>
+      <PackageId>homegenie-iot-sharp</PackageId>
+      <PackageVersion>1.0.0</PackageVersion>
+      <Id>gpio-pin</Id>
+      <Version>1.0.1</Version>
+      <Required>false</Required>
+      <Checksum>B3FCA74A18E76F8585DB8F99690D2F95</Checksum>
+    </PackageInfo>
+    <Domain>HomeAutomation.HomeGenie.Automation</Domain>
+    <Address>600</Address>
+    <Name>GPIO Pin v.1</Name>
+    <Description>Configurable GPIO pin as binary input sensor or output switch.
+(RaspberrySharp.IO)
+</Description>
+    <Group>Raspberry Pi</Group>
+    <Features />
+    <AutoRestartEnabled>false</AutoRestartEnabled>
+    <Cloneable>true</Cloneable>
+    <Type>CSharp</Type>
+    <IsEnabled>false</IsEnabled>
+  </ProgramBlock>
+  <ProgramBlock>
+    <ScriptSetup>Program.Setup(() =&gt; {
+    Program.AddOption("LedsCount", "1", "Number of chained RGB leds", "slider:1:32:1");
+});
+Program.Run();
+</ScriptSetup>
+    <ScriptSource>// Based on RaspberrySharp libraries for programming GPIO/I2C/SPI devices
+// Docs https://github.com/genemars/raspberry-sharp-io
+
+#using Raspberry.IO.GeneralPurpose
+#using Raspberry.IO.Components.Leds.GroveRgb
+
+// Domain
+string appDomain = "HomeAutomation.GroveRGB";
+// Params
+int ledsCount = (int)Program.Option("LedsCount").DecimalValue;
+// Grove RGB modules
+var rgbModules = Modules.InDomain(appDomain);
+// Grove RGB Led GPIO settings
+//var driver = new FileGpioConnectionDriver();
+var driver = new GpioConnectionDriver();
+var gpioOut1 = new GpioOutputBinaryPin(driver, ConnectorPin.P1Pin13.ToProcessor());
+var gpioOut2 = new GpioOutputBinaryPin(driver, ConnectorPin.P1Pin07.ToProcessor());
+var groveRgb = new GroveRgbConnection(gpioOut1, gpioOut2, ledsCount);
+// Allocate color light modules for this app
+Program.AddModules(appDomain, 1, ledsCount, "Dimmer", "homegenie/generic/colorlight");
+// Default delay
+double defaultDelay = 400;
+
+// State object
+var timings = new dynamic[ledsCount];
+
+var GetHsb = new Func&lt;string,dynamic&gt;((hsb)=&gt;{
+  dynamic color = new ExpandoObject();
+  string[] parts = hsb.Split(',');
+  color.H = double.Parse(parts[0] != "" ? parts[0] : "1", CultureInfo.InvariantCulture);
+  color.S = double.Parse(parts.Length &gt; 1 &amp;&amp; parts[1] != "" ? parts[1] : "0", CultureInfo.InvariantCulture);
+  color.B = double.Parse(parts.Length &gt; 2 &amp;&amp; parts[2] != "" ? parts[2] : "1", CultureInfo.InvariantCulture);
+  return color;
+});
+
+var GetValueAt = new Func&lt;double,double,double,double,double&gt;((from, to, duration, offset)=&gt;{
+  double range = (to-from);
+  return from+(range/duration*offset);
+});
+
+var updateLeds = new Func&lt;bool&gt;(()=&gt;{
+  bool iterateNext;
+  while(Program.IsRunning) {
+    do {
+      iterateNext = false;
+      for(int lednumber = 0; lednumber &lt; ledsCount; lednumber++) {
+	  	//lock (timings[lednumber])
+       {
+          var item = timings[lednumber];
+          if (item == null || item.timeEnd == null) continue;
+          var timeSpan = new TimeSpan(item.timeEnd.Ticks-DateTime.Now.Ticks);
+          if (timeSpan.TotalMilliseconds &gt; 0 &amp;&amp; timeSpan.TotalMilliseconds &lt;= item.duration) {
+            var h = GetValueAt(item.currentColor.H, item.color.H, item.duration, item.duration-timeSpan.TotalMilliseconds);
+            var s = GetValueAt(item.currentColor.S, item.color.S, item.duration, item.duration-timeSpan.TotalMilliseconds);
+            var v = GetValueAt(item.currentColor.B, item.color.B, item.duration, item.duration-timeSpan.TotalMilliseconds);
+            groveRgb.SetColor(lednumber, RgbColor.FromHsv(h, s, v));
+            iterateNext = true;
+          } else if (timeSpan.TotalMilliseconds &lt;= 0) {
+            item.timeEnd = null;
+            groveRgb.SetColor(lednumber, RgbColor.FromHsv(item.color.H, item.color.S, item.color.B));
+          }
+  		}
+      }
+      Pause(0.050);
+    } while (iterateNext &amp;&amp; Program.IsRunning);
+    Pause(0.250);
+  }
+  return true;
+});
+
+var setColor = new Func&lt;int,dynamic,double,bool&gt;((lednumber, color, duration)=&gt;{
+  //lock (timings[lednumber])
+   {
+    var item = timings[lednumber];
+    item.currentColor = GetHsb(item.module.Parameter("Status.ColorHsb").Value);
+    if (item.module.Level == 0) {
+      //item.currentColor.H = 0;
+      //item.currentColor.S = 1;
+      item.currentColor.B = 0;
+    }
+    item.color = color;
+    item.duration = duration;
+    item.timeEnd = DateTime.Now.AddMilliseconds(duration);
+  }
+  return true;
+});
+
+// Initialize modules
+for(int x = 0; x &lt; ledsCount; x++)
+{
+  var module = rgbModules.WithAddress((x+1).ToString()).Get();
+  if (module.Parameter("Status.ColorHsb").Value == "")
+  {
+    module.Parameter("Status.ColorHsb").Value = "1,0,1";
+  }
+  var currentColor = GetHsb(module.Parameter("Status.ColorHsb").Value);
+  if (module.Parameter("Status.Level").DecimalValue == 0)
+  {
+    currentColor.B = 0d;
+  }
+  var item = timings[x] = new ExpandoObject();
+  item.module = rgbModules.WithAddress((x+1).ToString()).Get();
+  setColor(x, currentColor, defaultDelay);
+}
+
+// Release GPIO driver if app is being stopped
+When.ProgramStopping(()=&gt;{
+  ((IDisposable)groveRgb).Dispose();
+  return true;
+});
+
+// API calls handling
+Api.Handle(appDomain, (args) =&gt; {
+  try
+  {
+    var apiCall = Api.Parse(args);
+    string lightnumber = apiCall.Address;
+    var module = rgbModules.WithAddress(lightnumber).Get();
+    int lightId = int.Parse(lightnumber) - 1;
+    var currentColor = GetHsb(module.Parameter("Status.ColorHsb").Value);
+    switch(apiCall.Command)
+    {
+      // eg. http://&lt;hg_address&gt;/api/HomeAutomation.GroveRGB/&lt;light_number&gt;/Control.On
+      case "Control.On":
+        setColor(lightId, currentColor, defaultDelay);
+        module.Emit("Status.Level", currentColor.B);
+        module.Emit("Status.ColorHsb", module.Parameter("Status.ColorHsb").Value);
+        break;
+      // eg. http://&lt;hg_address&gt;/api/HomeAutomation.GroveRGB/&lt;light_number&gt;/Control.Off
+      case "Control.Off":
+        currentColor.B = 0d;
+        setColor(lightId, currentColor, defaultDelay);
+        module.Emit("Status.Level", "0");
+        break;
+      case "Control.Toggle":
+        if (module.Parameter("Status.Level").DecimalValue == 0)
+        {
+          setColor(lightId, currentColor, defaultDelay);
+          module.Emit("Status.Level", currentColor.B);
+          //module.Emit("Status.ColorHsb", module.Parameter("Status.ColorHsb").Value);
+        }
+        else
+        {
+          currentColor.B = 0d;
+          setColor(lightId, currentColor, defaultDelay);
+          module.Emit("Status.Level", 0);
+        }
+        break;
+      case "Control.Level":
+        double level = (double.Parse(apiCall.GetOption(0)) / 100D);
+        currentColor.B = level;
+        setColor(lightId, currentColor, defaultDelay);
+        module.Emit("Status.Level", level.ToString());
+        break;
+      // eg. http://&lt;hg_address&gt;/api/HomeAutomation.GroveRGB/&lt;led_number&gt;/Control.ColorHsb/&lt;hue&gt;,&lt;sat&gt;,&lt;bri&gt;
+      case "Control.ColorHsb":
+        string[] values = apiCall.GetOption(0).Split(',');
+        double transition = defaultDelay;
+        if (values.Length &gt; 3) transition = ((int)(double.Parse(values[3], CultureInfo.InvariantCulture)*1000)); 
+        var color = GetHsb(apiCall.GetOption(0));
+        setColor(lightId, color, transition);
+        module.Emit("Status.Level", color.B);
+        module.Emit("Status.ColorHsb", apiCall.GetOption(0));
+        break; 
+    }
+    return new ResponseText("OK "+module.Parameter("Status.ColorHsb").Value+"  --  "+currentColor.H);
+    //return timings;
+  } 
+  catch (Exception e) 
+  { 
+    Program.Notify("Grove RGB ERROR:2", e.Message);
+  }
+  return new ResponseText("ERROR");
+}); 
+
+// Start leds driver thread
+updateLeds();
+</ScriptSource>
+    <ScriptContext />
+    <ScriptErrors>[]</ScriptErrors>
+    <Data />
+    <PackageInfo>
+      <Repository>homegenie</Repository>
+      <PackageId>homegenie-iot-sharp</PackageId>
+      <PackageVersion>1.0.0</PackageVersion>
+      <Id>grove-chainable-rgb-led</Id>
+      <Version>1.0.2</Version>
+      <Required>false</Required>
+      <Checksum>3BEF6E4F5199163AD625115E33A6E29B</Checksum>
+    </PackageInfo>
+    <Domain>HomeAutomation.HomeGenie.Automation</Domain>
+    <Address>603</Address>
+    <Name>Grove - Chainable RGB Led</Name>
+    <Description>Chainable RGB color led modules wired to GPIO#4 and GPIO#21/27 (power with 3v3).
+https://wiki.seeedstudio.com/Grove-Chainable_RGB_LED/</Description>
+    <Group>Raspberry Pi</Group>
+    <Features />
+    <AutoRestartEnabled>false</AutoRestartEnabled>
+    <Cloneable>false</Cloneable>
+    <Type>CSharp</Type>
+    <IsEnabled>false</IsEnabled>
+  </ProgramBlock>
+</ArrayOfProgramBlock>

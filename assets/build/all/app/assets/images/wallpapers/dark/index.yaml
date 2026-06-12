@@ -1,0 +1,37 @@
+wallpapers:
+
+  - background:
+      file: 01.jpg
+      title: Blue
+      copyright:
+    card:
+      color: "#000a4d"
+      opacity: 70
+      blur: 60
+
+  - background:
+      file: 02.jpg
+      title: Multicolor
+      copyright: Gemini AI - Nano Banana
+    card:
+      color: "#2b2b2b"
+      opacity: 70
+      blur: 50
+
+  - background:
+      file: 03.jpg
+      title: Green
+      copyright: Gemini AI - Nano Banana
+    card:
+      color: "#00a80b"
+      opacity: 15
+      blur: 60
+
+  - background:
+      file: 04.jpg
+      title: Multicolor
+      copyright: Gemini AI - Nano Banana
+    card:
+      color: "#71fedb"
+      opacity: 10
+      blur: 60

@@ -1,0 +1,18 @@
+{
+  "stats.time_range": "محدوده زمانی",
+  "stats.one_second": "یک ثانیه",
+  "stats.five_seconds": "۵ ثانیه",
+  "stats.ten_seconds": "۱۰ ثانیه",
+  "stats.half_minute": "۳۰ ثانیه",
+  "stats.one_minute": "یک دقیقه",
+  "stats.ten_minutes": "۱۰ دقیقه",
+  "stats.half_hour": "۳۰ دقیقه",
+  "stats.one_hour": "یک ساعت",
+  "stats.three_hours": "۳ ساعت",
+  "stats.six_hours": "۶ ساعت",
+  "stats.twelve_hours": "۱۲ ساعت",
+  "stats.twentyfour_hours": "۲۴ ساعت",
+  "stats.chart_provider": "ارائه دهنده نمودار",
+  "stats.five_minutes": "۵ دقیقه",
+  "stats.fifteen_minutes": "۱۵ دقیقه"
+}

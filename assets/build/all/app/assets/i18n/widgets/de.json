@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Aktivieren/Deaktivieren des langen Drückens zum Neuanordnen von Widgets",
+  "$alarm_system": {
+    "arm_home": "Heim",
+    "arm_away": "Weg"
+  },
+  "$section_label": {
+    "label": "Etikett",
+    "indicators": "Indikatoren",
+    "lights_control": "Lichter",
+    "switches_control": "Schalter"
+  },
+  "$ai_chat": {
+    "intro": "Hallo! Ich bin Ihre lokale KI. Wie kann ich Ihnen helfen?",
+    "start_typing_prompt": "Beginnen Sie mit der Eingabeaufforderung...",
+    "download_title": "Erforderliche LLM-Datei herunterladen:",
+    "teaser_description": "Nutzen Sie die Leistungsfähigkeit generativer KI auf Ihrer Hardware. Chatten Sie, schreiben Sie Code oder erstellen Sie fortschrittliche Automatisierungen mit der Sicherheit eines lokalen und privaten Systems.",
+    "select_model": "Wählen Sie ein Modell aus",
+    "feat_private": "Privat",
+    "feat_offline": "Schnell und lokal",
+    "feat_automation": "Automatisierung",
+    "loading_model": "Das Modell wird in den Speicher geladen... Dies kann einige Augenblicke dauern.",
+    "model": "Modell",
+    "status": "Status"
+  }
+}

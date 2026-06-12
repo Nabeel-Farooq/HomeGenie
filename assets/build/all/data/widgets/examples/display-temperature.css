@@ -1,0 +1,55 @@
+:host {
+    font-weight: lighter;
+    height: 100%;
+    min-width: 312px;
+    min-height: 180px;
+}
+
+svg {
+    fill: var(--primary-color);
+    width: 80px;
+    height: 80px;
+}
+
+.container {
+    display: flex;
+    align-items: center;
+    place-content: center;
+    width: 280px;
+    min-height: 145px;
+    padding-bottom: 12px;
+}
+
+.value {
+    color: var(--secondary-text-color);
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    font-size: 420%;
+    font-weight: 300;
+    text-align: center;
+}
+
+.title {
+  position: absolute;
+  bottom: 12px;
+  margin-left: auto;
+  margin-right: auto;
+  height: 32px;
+  line-height: 32px;
+  width: 100%;
+  text-align: center;
+  vertical-align: middle;
+  font-size: 180%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unit {
+    font-size: 200%;
+    padding: 12px;
+    opacity: 0.4;
+    height: 40px;
+}
+.unit:before {
+    content: "\00B0";
+    margin-right: 6px;
+}

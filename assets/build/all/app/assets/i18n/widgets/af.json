@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Aktiveer/Deaktiveer lang druk om widgets te herrangskik",
+  "$alarm_system": {
+    "arm_home": "Tuis",
+    "arm_away": "Weg"
+  },
+  "$section_label": {
+    "label": "Etiket",
+    "indicators": "Aanwysers",
+    "lights_control": "Ligte",
+    "switches_control": "Skakelaars"
+  },
+  "$ai_chat": {
+    "intro": "Hallo! Ek is jou plaaslike KI. Hoe kan ek jou help?",
+    "start_typing_prompt": "Begin om 'n aanwysingswoord te tik...",
+    "download_title": "Laai die vereiste LLM-lêer af:",
+    "teaser_description": "Benut die krag van Generatiewe KI op jou hardeware. Gesels, skryf kode of bou gevorderde outomatisasies met die sekuriteit van 'n plaaslike en private stelsel.",
+    "select_model": "Kies 'n model",
+    "feat_private": "Privaat",
+    "feat_offline": "Vinnig en Plaaslik",
+    "feat_automation": "Outomatisering",
+    "loading_model": "Laai model in geheue... Dit mag dalk 'n paar oomblikke neem.",
+    "model": "Model",
+    "status": "Status"
+  }
+}

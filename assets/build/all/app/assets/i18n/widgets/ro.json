@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Activează/Dezactivează apăsarea lungă pentru reordonarea widgeturilor",
+  "$alarm_system": {
+    "arm_home": "Acasă",
+    "arm_away": "Departe"
+  },
+  "$section_label": {
+    "label": "Eticheta",
+    "indicators": "Indicatori",
+    "lights_control": "Lumini",
+    "switches_control": "Comutatoare"
+  },
+  "$ai_chat": {
+    "intro": "Salut! Sunt inteligența artificială locală. Cum te pot ajuta?",
+    "start_typing_prompt": "Începeți să tastați o solicitare...",
+    "download_title": "Descărcați fișierul LLM necesar:",
+    "teaser_description": "Valorificați puterea inteligenței artificiale generative pe hardware-ul dvs. Discutați, scrieți cod sau construiți automatizări avansate cu securitatea unui sistem local și privat.",
+    "select_model": "Selectați un model",
+    "feat_private": "Privat",
+    "feat_offline": "Rapid și local",
+    "feat_automation": "Automatizare",
+    "loading_model": "Se încarcă modelul în memorie... Acest proces poate dura câteva momente.",
+    "model": "Model",
+    "status": "Stare"
+  }
+}

@@ -1,0 +1,22 @@
+<div class="container" layout="column top-stretch">
+  <div class="header" layout="row center-justify">
+    <strong #name>Dimmer</strong>
+    <span #status_text class="status">Off</span>
+  </div>
+  <div class="body" layout="column center-center">
+    <div class="dimmer-ring" #ring (pointerdown)="startDrag(event)">
+      <svg viewBox="-5 -5 110 110">
+        <circle class="track" cx="50" cy="50" r="42" />
+        <circle class="progress" #progress cx="50" cy="50" r="42" transform="rotate(-90 50 50)"
+          @set="$this.css({strokeDashoffset: getOffset()})"></circle>
+      </svg>
+      <div class="center-content" (click)="toggle()">
+        <span class="material-symbols icon"
+              @if="isOn()"
+              @then="$this.addClass('active-icon')"
+              @else="$this.removeClass('active-icon')">lightbulb</span>
+        <div class="percentage" #percent @set="$this.html(level() + '%')">0%</div>
+      </div>
+    </div>
+  </div>
+</div>

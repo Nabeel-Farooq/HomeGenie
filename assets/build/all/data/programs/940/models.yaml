@@ -1,0 +1,105 @@
+# ------------------
+# Gemma
+# ------------------
+
+"unsloth/gemma-4-E4B-it-Q5_K_M.gguf":
+  Name: unsloth/gemma-4-E4B-it-GGUF
+  Repository: https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF
+  Url: https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q5_K_M.gguf?download=true
+  Template: chatml
+
+
+
+# ------------------
+# Qwen
+# ------------------
+
+"unsloth/Qwen3.5-4B-Q8_0.gguf":
+  Name: unsloth/Qwen3.5-4B-GGUF
+  Repository: https://huggingface.co/unsloth/Qwen3.5-4B-GGUF
+  Url: https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q8_0.gguf?download=true
+  Template: chatml
+
+"Jackrong/Qwen3.5-9B-DeepSeek-V4-Flash-Q5_K_M.gguf":
+  Name: Jackrong/Qwen3.5-9B-DeepSeek-V4-Flash-GGUF
+  Repository: https://huggingface.co/Jackrong/Qwen3.5-9B-DeepSeek-V4-Flash-GGUF
+  Url: https://huggingface.co/Jackrong/Qwen3.5-9B-DeepSeek-V4-Flash-GGUF/resolve/main/Qwen3.5-9B-DeepSeek-V4-Flash-Q5_K_M.gguf?download=true
+  Template: chatml
+
+"khazarai/Qwen3-4B-Thinking-2507.Q8_0.gguf":
+  Name: khazarai/Qwen3-4B-Qwen3.6-plus-Reasoning-Distilled-GGUF
+  Repository: https://huggingface.co/khazarai/Qwen3-4B-Qwen3.6-plus-Reasoning-Distilled-GGUF
+  Url: https://huggingface.co/khazarai/Qwen3-4B-Qwen3.6-plus-Reasoning-Distilled-GGUF/resolve/main/Qwen3-4B-Thinking-2507.Q8_0.gguf?download=true
+  Template: chatml
+
+"unsloth/Qwen3-4B-Instruct-2507-UD-Q5_K_XL.gguf":
+  Name: unsloth/Qwen3-4B-Instruct-2507-GGUF
+  Repository: https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF
+  Url: https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-UD-Q5_K_XL.gguf?download=true
+  Template: chatml
+
+"Qwen/Qwen3-1.7B-Q8_0.gguf":
+  Name: Qwen/Qwen3-1.7B-GGUF
+  Repository: https://huggingface.co/Qwen/Qwen3-1.7B-GGUF
+  Url: https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q8_0.gguf?download=true
+  Template: chatml
+
+"Qwen/Qwen3-4B-Q5_K_M.gguf":
+  Name: Qwen/Qwen3-4B-GGUF
+  Repository: https://huggingface.co/Qwen/Qwen3-4B-GGUF
+  Url: https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q5_K_M.gguf?download=true
+  Template: chatml
+
+"Qwen/Qwen3-8B-Q8_0.gguf":
+  Name: Qwen/Qwen3-8B-GGUF
+  Repository: https://huggingface.co/Qwen/Qwen3-8B-GGUF
+  Url: https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q8_0.gguf?download=true
+  Template: chatml
+
+"Qwen/qwen2.5-coder-7b-instruct-q5_k_m.gguf":
+  Name: Qwen/Qwen2.5-Coder-7B-Instruct-GGUF
+  Repository: https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF
+  Url: https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF/resolve/main/qwen2.5-coder-7b-instruct-q5_k_m.gguf?download=true
+  Template: chatml
+
+
+
+# ------------------
+# GPT-5.x
+# ------------------
+
+"mradermacher/Qwen3-8B-GPT-5.2-High-Reasoning-Distill.i1-Q4_K_M.gguf":
+  Name: mradermacher/Qwen3-8B-GPT-5.2-High-Reasoning-Distill-i1-GGUF
+  Repository: https://huggingface.co/mradermacher/Qwen3-8B-GPT-5.2-High-Reasoning-Distill-i1-GGUF
+  Url: https://huggingface.co/mradermacher/Qwen3-8B-GPT-5.2-High-Reasoning-Distill-i1-GGUF/resolve/main/Qwen3-8B-GPT-5.2-High-Reasoning-Distill.i1-Q4_K_M.gguf?download=true
+  Template: chatml
+
+"TeichAI/Qwen3-14B-GPT-5.2-Distill.q4_k_m.gguf":
+  Name: TeichAI/Qwen3-14B-GPT-5.2-High-Reasoning-Distill-GGUF
+  Repository: https://huggingface.co/TeichAI/Qwen3-14B-GPT-5.2-High-Reasoning-Distill-GGUF
+  Url: https://huggingface.co/TeichAI/Qwen3-14B-GPT-5.2-High-Reasoning-Distill-GGUF/resolve/main/Qwen3-14B-GPT-5.2-Distill.q4_k_m.gguf?download=true
+  Template: chatml
+
+"Jackrong/GPT-5-Distill-Qwen3-4B-Instruct-Q6_K.gguf":
+  Name: Jackrong/GPT-5-Distill-Qwen3-4B-Instruct-GGUF
+  Repository: https://huggingface.co/Jackrong/GPT-5-Distill-Qwen3-4B-Instruct-GGUF
+  Url: https://huggingface.co/Jackrong/GPT-5-Distill-Qwen3-4B-Instruct-GGUF/resolve/main/GPT-5-Distill-Qwen3-4B-Instruct-Q6_K.gguf?download=true
+  Template: chatml
+
+"TeichAI/Qwen3-4B-Instruct-Claude-Haiku-4.5-Distill.q5_k_m.gguf":
+  Name: TeichAI/Qwen3-4B-Instruct-2507-Claude-Haiku-4.5-Distill-GGUF
+  Repository: https://huggingface.co/TeichAI/Qwen3-4B-Instruct-2507-Claude-Haiku-4.5-Distill-GGUF
+  Url: https://huggingface.co/TeichAI/Qwen3-4B-Instruct-2507-Claude-Haiku-4.5-Distill-GGUF/resolve/main/Qwen3-4B-Instruct-Claude-Haiku-4.5-Distill.q5_k_m.gguf?download=true
+  Template: chatml
+
+
+
+# ------------------------
+# New LLMs (to be tested)
+# ------------------------
+
+"MaziyarPanahi/Yi-Coder-9B-Chat.Q5_K_M.gguf":
+  Name: MaziyarPanahi/Yi-Coder-9B-Chat-GGUF
+  Repository: https://huggingface.co/MaziyarPanahi/Yi-Coder-9B-Chat-GGUF
+  Url: https://huggingface.co/MaziyarPanahi/Yi-Coder-9B-Chat-GGUF/resolve/main/Yi-Coder-9B-Chat.Q5_K_M.gguf?download=true
+  Template: chatml

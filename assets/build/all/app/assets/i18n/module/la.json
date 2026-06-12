@@ -1,0 +1,18 @@
+{
+  "stats.time_range": "Spatium temporis",
+  "stats.one_second": "Unum secundum",
+  "stats.five_seconds": "Quinque secunda",
+  "stats.ten_seconds": "Decem secunda",
+  "stats.half_minute": "Triginta secunda",
+  "stats.one_minute": "Unum minutum",
+  "stats.ten_minutes": "Decem minuta",
+  "stats.half_hour": "Triginta minuta",
+  "stats.one_hour": "Hora una",
+  "stats.three_hours": "Tres horae",
+  "stats.six_hours": "Sex horae",
+  "stats.twelve_hours": "Horae duodecim",
+  "stats.twentyfour_hours": "XXIV horae",
+  "stats.chart_provider": "Provisor chartarum",
+  "stats.five_minutes": "Quinque minuta",
+  "stats.fifteen_minutes": "Quindecim minuta"
+}

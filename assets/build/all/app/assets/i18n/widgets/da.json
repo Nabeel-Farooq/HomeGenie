@@ -1,0 +1,26 @@
+{
+  "toggle_long_press_to_reorder_widgets": "Aktivér/deaktiver langt tryk for at ændre rækkefølgen af widgets",
+  "$alarm_system": {
+    "arm_home": "Hjem",
+    "arm_away": "Væk"
+  },
+  "$section_label": {
+    "label": "Mærke",
+    "indicators": "Indikatorer",
+    "lights_control": "Lys",
+    "switches_control": "Afbrydere"
+  },
+  "$ai_chat": {
+    "intro": "Hej! Jeg er din lokale kunstige intelligens. Hvordan kan jeg hjælpe dig?",
+    "start_typing_prompt": "Begynd at skrive en prompt...",
+    "download_title": "Download den nødvendige LLM-fil:",
+    "teaser_description": "Udnyt kraften i generativ kunstig intelligens på din hardware. Chat, skriv kode eller byg avancerede automatiseringer med sikkerheden fra et lokalt og privat system.",
+    "select_model": "Vælg en model",
+    "feat_private": "Privat",
+    "feat_offline": "Hurtigt og lokalt",
+    "feat_automation": "Automatisering",
+    "loading_model": "Indlæser model i hukommelsen... Dette kan tage et par øjeblikke.",
+    "model": "Model",
+    "status": "Status"
+  }
+}
