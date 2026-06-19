@@ -1,6 +1,4 @@
 /*
-   Copyright 2012-2025 G-Labs (https://github.com/genielabs)
-
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU Affero General Public License as
    published by the Free Software Foundation, either version 3 of the
@@ -15,10 +13,6 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-/*
- *     Author: Generoso Martello <gene@homegenie.it>
- *     Project Homepage: https://homegenie.it
- */
 
 using System;
 
@@ -27,7 +21,7 @@ using HomeGenie.Data;
 
 namespace HomeGenie
 {
-    [Serializable()]
+    [Serializable]
     public class Store
     {
         public string Name;
@@ -35,10 +29,8 @@ namespace HomeGenie
         public TsList<ModuleParameter> Data;
 
         public Store()
+            : this(string.Empty, string.Empty)
         {
-            Name = "";
-            Description = "";
-            Data = new TsList<ModuleParameter>();
         }
 
         public Store(string name, string description = "")
