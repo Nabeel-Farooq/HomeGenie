@@ -1,6 +1,4 @@
-﻿/*
-   Copyright 2012-2025 G-Labs (https://github.com/genielabs)
-
+/*
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU Affero General Public License as
    published by the Free Software Foundation, either version 3 of the
@@ -15,10 +13,6 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-/*
- *     Author: Generoso Martello <gene@homegenie.it>
- *     Project Homepage: https://homegenie.it
- */
 
 using System;
 using System.Collections.Generic;
@@ -36,28 +30,25 @@ namespace HomeGenie.Data
         /// </summary>
         public class StatValue
         {
+            private static readonly DateTime UnixEpoch =
+                new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
             /// <summary>
             /// Gets the value.
             /// </summary>
-            /// <value>The value.</value>
             public readonly double Value;
+
             /// <summary>
             /// Gets the timestamp.
             /// </summary>
-            /// <value>The timestamp.</value>
             public readonly DateTime Timestamp;
 
             /// <summary>
             /// Gets the unix timestamp.
             /// </summary>
-            /// <value>The unix timestamp.</value>
             public double UnixTimestamp
             {
-                get
-                {
-                    var uts = (Timestamp - new DateTime(1970, 1, 1, 0, 0, 0));
-                    return uts.TotalMilliseconds;
-                }
+                get { return (Timestamp - UnixEpoch).TotalMilliseconds; }
             }
 
             public StatValue(double value, DateTime timestamp)
@@ -68,22 +59,29 @@ namespace HomeGenie.Data
         }
 
         private TsList<StatValue> historyValues;
+
         // historyLimit is expressed in minutes
         private int historyLimit = 60 * 24;
         private int historyLimitSize = 86400;
-        private StatValue lastEvent, lastOn, lastOff;
+
+        private StatValue lastEvent;
+        private StatValue lastOn;
+        private StatValue lastOff;
 
         public ValueStatistics()
         {
             var initValue = new StatValue(0, DateTime.UtcNow);
-            lastEvent = lastOn = lastOff = initValue;
+
+            lastEvent = initValue;
+            lastOn = initValue;
+            lastOff = initValue;
+
             historyValues = new TsList<StatValue>();
         }
 
         /// <summary>
         /// Gets or sets the history limit.
         /// </summary>
-        /// <value>The history limit.</value>
         public int HistoryLimit
         {
             get { return historyLimit; }
@@ -91,9 +89,8 @@ namespace HomeGenie.Data
         }
 
         /// <summary>
-        /// Gets or sets the history limit.
+        /// Gets or sets the history limit size.
         /// </summary>
-        /// <value>The history limit.</value>
         public int HistoryLimitSize
         {
             get { return historyLimitSize; }
@@ -103,7 +100,6 @@ namespace HomeGenie.Data
         /// <summary>
         /// Gets the history.
         /// </summary>
-        /// <value>The history.</value>
         public TsList<StatValue> History
         {
             get { return historyValues; }
@@ -113,16 +109,19 @@ namespace HomeGenie.Data
         /// <summary>
         /// Gets the current value.
         /// </summary>
-        /// <value>The current.</value>
         public StatValue Current
         {
-            get { return historyValues.Count > 0 ? historyValues[0] : new StatValue(0, DateTime.UtcNow); }
+            get
+            {
+                return historyValues.Count > 0
+                    ? historyValues[0]
+                    : new StatValue(0, DateTime.UtcNow);
+            }
         }
 
         /// <summary>
         /// Gets the last value.
         /// </summary>
-        /// <value>The last.</value>
         public StatValue Last
         {
             get { return lastEvent; }
@@ -131,7 +130,6 @@ namespace HomeGenie.Data
         /// <summary>
         /// Gets the last on value (value != 0).
         /// </summary>
-        /// <value>The last on.</value>
         public StatValue LastOn
         {
             get { return lastOn; }
@@ -140,7 +138,6 @@ namespace HomeGenie.Data
         /// <summary>
         /// Gets the last off value (value == 0).
         /// </summary>
-        /// <value>The last off.</value>
         public StatValue LastOff
         {
             get { return lastOff; }
@@ -150,9 +147,12 @@ namespace HomeGenie.Data
         {
             // "value" is the occurring event in this very moment,
             // so "Current" is holding previous value right now
-            if (Current != null && Current.Value != value)
+            var current = Current;
+
+            if (current != null && current.Value != value)
             {
-                lastEvent = new StatValue(Current.Value, Current.Timestamp);
+                lastEvent = new StatValue(current.Value, current.Timestamp);
+
                 if (value == 0 && lastEvent.Value > 0)
                 {
                     lastOn = lastEvent;
@@ -164,19 +164,39 @@ namespace HomeGenie.Data
                     lastOn = new StatValue(value, timestamp);
                 }
             }
+
             // keep size within historyLimit (minutes)
             try
             {
-                if (historyValues.Count > historyLimitSize)
+                var count = historyValues.Count;
+
+                if (count > historyLimitSize)
                 {
-                    historyValues.RemoveRange(historyLimitSize, historyValues.Count - historyLimitSize);
+                    historyValues.RemoveRange(
+                        historyLimitSize,
+                        count - historyLimitSize
+                    );
                 }
-                while (historyValues.Count > 0 && (DateTime.UtcNow - historyValues[historyValues.Count - 1].Timestamp).TotalMinutes > historyLimit)
+
+                if (historyValues.Count > 0)
                 {
-                    historyValues.RemoveAll(sv => (DateTime.UtcNow - sv.Timestamp).TotalMinutes > historyLimit);
+                    var now = DateTime.UtcNow;
+                    var oldest = historyValues[historyValues.Count - 1];
+
+                    if ((now - oldest.Timestamp).TotalMinutes > historyLimit)
+                    {
+                        historyValues.RemoveAll(
+                            sv => (now - sv.Timestamp).TotalMinutes > historyLimit
+                        );
+                    }
                 }
+
                 // leave this wrapped in a try..catch
-            } catch { }
+            }
+            catch
+            {
+            }
+
             // insert current value into history and so update "Current" to "value"
             historyValues.Insert(0, new StatValue(value, timestamp));
         }
@@ -186,7 +206,7 @@ namespace HomeGenie.Data
         /// </summary>
         internal List<StatValue> GetResampledValues(int sampleWidth) // in minutes
         {
-            //historyValues.FindAll(sv => (DateTime.UtcNow - sv.Timestamp).TotalMinutes < sampleWidth);
+            // historyValues.FindAll(sv => (DateTime.UtcNow - sv.Timestamp).TotalMinutes < sampleWidth);
             // TODO: to be implemented
             return null;
         }
