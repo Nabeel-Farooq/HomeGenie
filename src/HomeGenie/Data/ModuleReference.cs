@@ -1,5 +1,4 @@
 /*
-   Copyright 2012-2025 G-Labs (https://github.com/genielabs)
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU Affero General Public License as
@@ -15,19 +14,16 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-/*
- *     Author: Generoso Martello <gene@homegenie.it>
- *     Project Homepage: https://homegenie.it
- */
 
 using System;
 
 namespace HomeGenie.Data
 {
-    [Serializable()]
+    [Serializable]
     public class ModuleReference
     {
         public string Address { get; set; }
+
         public string Domain { get; set; }
     }
 }
