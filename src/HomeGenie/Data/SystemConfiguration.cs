@@ -1,5 +1,4 @@
 /*
-   Copyright 2012-2025 G-Labs (https://github.com/genielabs)
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU Affero General Public License as
@@ -15,10 +14,6 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-/*
-*     Author: Generoso Martello <gene@homegenie.it>
-*     Project Homepage: https://homegenie.it
-*/
 
 using System;
 using System.Collections.Generic;
@@ -33,11 +28,11 @@ using HomeGenie.Automation;
 
 namespace HomeGenie.Data
 {
-    [Serializable()]
+    [Serializable]
     public class SystemConfiguration
     {
-        private object configWriteLock = new object();
-        private string passphrase = "";
+        private readonly object configWriteLock = new object();
+        private string passphrase = string.Empty;
 
         // TODO: change this to use standard event delegates model
         public event Action<bool> OnUpdate;
@@ -48,65 +43,79 @@ namespace HomeGenie.Data
 
         public SystemConfiguration()
         {
-            HomeGenie = new HomeGenieConfiguration();
-            HomeGenie.SystemName = "HAL";
-            HomeGenie.Location = "";
-            HomeGenie.EnableLogFile = "false";
+            HomeGenie = new HomeGenieConfiguration
+            {
+                SystemName = "HAL",
+                Location = string.Empty,
+                EnableLogFile = "false"
+            };
+
             MigService = new MigServiceConfiguration();
         }
 
         public bool Update()
         {
-            bool success = false;
+            var success = false;
+
             try
             {
                 var syscopy = this.DeepClone();
-                foreach (ModuleParameter p in syscopy.HomeGenie.Settings)
+                var encryptionPassphrase = passphrase;
+                var settings = syscopy.HomeGenie.Settings;
+
+                foreach (ModuleParameter p in settings)
                 {
-                    if (p.GetData() is string)
+                    if (!(p.GetData() is string))
+                        continue;
+
+                    var stringValue = p.Value;
+
+                    try
                     {
-                        string stringValue = p.Value;
-                        try
+                        if (!string.IsNullOrEmpty(stringValue))
                         {
-                            if (!String.IsNullOrEmpty(stringValue))
-                            {
-                                p.Value = StringCipher.Encrypt(stringValue, GetPassPhrase());
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            MIG.MigService.Log.Error(ex);
+                            p.Value = StringCipher.Encrypt(
+                                stringValue,
+                                encryptionPassphrase
+                            );
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        MIG.MigService.Log.Error(ex);
+                    }
                 }
-                string fname = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "systemconfig.xml");
-                if (File.Exists(fname))
+
+                var fileName = Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory,
+                    "systemconfig.xml"
+                );
+
+                var writerSettings = new System.Xml.XmlWriterSettings
                 {
-                    File.Delete(fname);
-                }
-                var ws = new System.Xml.XmlWriterSettings();
-                ws.Indent = true;
-                ws.Encoding = Encoding.UTF8;
-                XmlSerializer x = new XmlSerializer(syscopy.GetType());
+                    Indent = true,
+                    Encoding = Encoding.UTF8
+                };
+
+                var serializer = new XmlSerializer(syscopy.GetType());
+
                 lock (configWriteLock)
                 {
-                    using (var wri = System.Xml.XmlWriter.Create(fname, ws))
+                    using (var writer = System.Xml.XmlWriter.Create(fileName, writerSettings))
                     {
-                        x.Serialize(wri, syscopy);
+                        serializer.Serialize(writer, syscopy);
                     }
                 }
+
                 success = true;
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                MIG.MigService.Log.Error(e);
+                MIG.MigService.Log.Error(ex);
             }
-            //
-            if (OnUpdate != null)
-            {
-                OnUpdate(success);
-            }
-            //
+
+            OnUpdate?.Invoke(success);
+
             return success;
         }
 
@@ -121,13 +130,17 @@ namespace HomeGenie.Data
         }
     }
 
-    [Serializable()]
+    [Serializable]
     public class HomeGenieConfiguration
     {
         public string GUID { get; set; }
+
         public string SystemName { get; set; }
+
         public string Username { get; set; }
+
         public string Password { get; set; }
+
         public string Location { get; set; }
 
         public List<ModuleParameter> Settings = new List<ModuleParameter>();
@@ -136,11 +149,12 @@ namespace HomeGenie.Data
         {
             // default values
             Username = "admin";
-            Password = "";
+            Password = string.Empty;
         }
 
         public string EnableLogFile { get; set; }
-        public int ProgramIdNext { get; set; } = ProgramManager.USERSPACE_PROGRAMS_START;
-    }
 
+        public int ProgramIdNext { get; set; } =
+            ProgramManager.USERSPACE_PROGRAMS_START;
+    }
 }
