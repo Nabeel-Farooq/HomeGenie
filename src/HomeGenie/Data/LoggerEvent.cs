@@ -1,5 +1,5 @@
 /*
-   Copyright 2012-2025 G-Labs (https://github.com/genielabs)
+
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU Affero General Public License as
@@ -15,10 +15,6 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-/*
- *     Author: Generoso Martello <gene@homegenie.it>
- *     Project Homepage: https://homegenie.it
- */
 
 using System;
 using LiteDB;
@@ -26,7 +22,7 @@ using Newtonsoft.Json;
 
 namespace HomeGenie.Data
 {
-    [Serializable()]
+    [Serializable]
     public class LoggerEvent
     {
         public LoggerEvent()
@@ -37,15 +33,22 @@ namespace HomeGenie.Data
         public LoggerEvent(Module module, ModuleParameter parameter)
         {
             Parameter = parameter.Name;
-            Value = parameter.GetData(); // get the raw object value
-            UnixTimestamp = new DateTimeOffset(parameter.UpdateTime.ToUniversalTime()).ToUnixTimeMilliseconds();
+            Value = parameter.GetData();
+
+            var updateTime = parameter.UpdateTime.ToUniversalTime();
+
+            UnixTimestamp = new DateTimeOffset(updateTime)
+                .ToUnixTimeMilliseconds();
         }
 
         [BsonId]
         [JsonIgnore]
         public ObjectId Id { get; set; }
+
         public string Parameter { get; set; }
+
         public object Value { get; set; }
+
         public long UnixTimestamp { get; set; }
     }
 }
