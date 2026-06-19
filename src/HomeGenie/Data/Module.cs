@@ -44,11 +44,13 @@ namespace HomeGenie.Data
         /// <summary>
         /// Gets the properties.
         /// </summary>
-        public TsList<ModuleParameter> Properties { get; set; }
+        public TsList<ModuleParameter> Properties { get; set; } =
+            new TsList<ModuleParameter>();
 
         // TODO: deprecate 'Stores' field!!! (DataHelper/LiteDb can be used now to store data for a module)
         [JsonIgnore]
-        public TsList<Store> Stores { get; set; }
+        public TsList<Store> Stores { get; set; } =
+            new TsList<Store>();
 
         public Module()
         {
@@ -56,9 +58,6 @@ namespace HomeGenie.Data
             Address = string.Empty;
             Description = string.Empty;
             DeviceType = ModuleTypes.Generic;
-
-            Properties = new TsList<ModuleParameter>();
-            Stores = new TsList<Store>();
         }
 
         public Module Clone()
