@@ -1,5 +1,4 @@
-﻿/*
-   Copyright 2012-2025 G-Labs (https://github.com/genielabs)
+/*
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU Affero General Public License as
@@ -15,16 +14,12 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-/*
- *     Author: Generoso Martello <gene@homegenie.it>
- *     Project Homepage: https://homegenie.it
- */
 
 using System;
 
 namespace HomeGenie.Data
 {
-    [Serializable()]
+    [Serializable]
     public class ModuleEvent
     {
         public ModuleEvent()
@@ -34,10 +29,12 @@ namespace HomeGenie.Data
 
         public ModuleEvent(Module module, ModuleParameter parameter)
         {
-            this.Module = module;
-            this.Parameter = parameter;
+            Module = module;
+            Parameter = parameter;
         }
+
         public Module Module { get; set; }
+
         public ModuleParameter Parameter { get; set; }
     }
 }
