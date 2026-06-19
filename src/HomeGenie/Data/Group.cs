@@ -1,5 +1,5 @@
 /*
-   Copyright 2012-2025 G-Labs (https://github.com/genielabs)
+
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU Affero General Public License as
@@ -15,30 +15,26 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-/*
- *     Author: Generoso Martello <gene@homegenie.it>
- *     Project Homepage: https://homegenie.it
- */
 
 using System;
 using System.Collections.Generic;
 
 namespace HomeGenie.Data
 {
-    [Serializable()]
+    [Serializable]
     public class Group
     {
         public string Name { get; set; }
+
         public string Wallpaper { get; set; }
-        //
-        public List<ModuleReference> Modules { get; set; }
-        //
+
+        public List<ModuleReference> Modules { get; set; } =
+            new List<ModuleReference>();
+
         public Group()
         {
-            Name = "";
-            Wallpaper = "";
-            Modules = new List<ModuleReference>();
+            Name = string.Empty;
+            Wallpaper = string.Empty;
         }
     }
 }
-
